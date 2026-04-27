@@ -50,21 +50,21 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   --white:     #FFFFFF;
   --green:     #2F7A59;
   --red:       #B42318;
-  --radius:    14px;
+  --radius:    0px;
   font-family: 'DM Sans', sans-serif;
   max-width: 460px;
   margin: 18px 0 12px;
   color: var(--dark);
   background: linear-gradient(180deg, rgba(143,107,165,0.08), rgba(143,107,165,0));
   padding: 4px;
-  border-radius: 16px;
+  border-radius: 0px;
 }
-#bk-widget * { box-sizing: border-box; margin: 0; padding: 0; }
+#bk-widget * { box-sizing: border-box; margin: 0; padding: 5px; }
 
 /* ── Step card ── */
 .bk-card {
   border: 1px solid var(--gold-border);
-  border-radius: 16px;
+  border-radius: 0px;
   background: var(--surface);
   margin-bottom: 10px;
   overflow: hidden;
@@ -72,7 +72,8 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   box-shadow: 0 6px 18px rgba(42, 26, 54, 0.06);
 }
 .bk-card:focus-within { box-shadow: 0 0 0 3px rgba(143,107,165,.18), 0 6px 18px rgba(42, 26, 54, 0.08); }
-.bk-card:hover { transform: translateY(-1px); border-color: #CFBDD9; }
+{% comment %} .bk-card:hover { transform: translateY(-1px); border-color: #CFBDD9;  {% endcomment %}
+}
 
 .bk-card.bk-card-invalid {
   border-color: rgba(180, 35, 24, 0.45);
@@ -108,7 +109,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 }
 .bk-cal-nav button {
   background: none; border: 1px solid var(--gold-border);
-  border-radius: 8px; width: 30px; height: 30px;
+  border-radius: 0px; width: 30px; height: 30px;
   cursor: pointer; color: var(--gold); font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   transition: all .15s;
@@ -129,7 +130,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 }
 .bk-day {
   aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  border-radius: 7px; font-size: 12px; font-weight: 500;
+  border-radius: 0px; font-size: 12px; font-weight: 500;
   cursor: pointer; border: 1.5px solid transparent;
   transition: all .15s; color: var(--dark);
   position: relative; user-select: none;
@@ -143,7 +144,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 /* ── Slots ── */
 .bk-slots { display: flex; gap: 12px; padding: 14px; }
 .bk-slot {
-  flex: 1; padding: 12px 8px; border-radius: 10px;
+  flex: 1; padding: 12px 8px; border-radius: 0px;
   border: 1.5px solid var(--gold-border); background: linear-gradient(180deg, #FBF8FD, #F7F2FA);
   cursor: pointer; transition: all .18s; text-align: center;
 }
@@ -152,7 +153,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 .bk-slot.bk-slot-sel .bk-slot-lbl,
 .bk-slot.bk-slot-sel .bk-slot-time,
 .bk-slot.bk-slot-sel .bk-slot-st { color: rgba(255,255,255,.9); }
-/* .bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; } */
+.bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; }
 .bk-slot-ico  { font-size: 20px; margin-bottom: 4px; }
 .bk-slot-ico  { font-size: 18px; margin-bottom: 3px; }
 .bk-slot-lbl  { display: block; font-size: 12px; font-weight: 600; color: var(--mid); }
@@ -170,7 +171,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 /* ── Area ── */
 .bk-area-wrap { padding: 12px 14px 14px; }
 .bk-area-sel {
-  width: 100%; padding: 10px 40px 10px 12px; border-radius: 10px;
+  width: 100%; padding: 10px 40px 10px 12px; border-radius: 0px;
   border: 1.5px solid var(--gold-border); background: var(--white);
   font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--dark);
   appearance: none;
@@ -187,7 +188,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 .bk-fee {
   margin-top: 8px; padding: 9px 13px;
   background: #F4ECF8; border: 1px solid #D6C3E3;
-  border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--green);
+  border-radius: 0px; font-size: 13px; font-weight: 600; color: var(--green);
   display: none;
 }
 .bk-fee.show { display: block; }
@@ -195,7 +196,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 .bk-inline-error {
   margin-top: 8px;
   padding: 9px 11px;
-  border-radius: 10px;
+  border-radius: 0px;
   background: #FFF6F4;
   border: 1px solid rgba(180, 35, 24, 0.22);
   color: var(--red);
@@ -213,14 +214,14 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   background: rgba(143,107,165,0.08);
   border: 1px solid rgba(143,107,165,0.18);
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 0px;
 }
 
 /* ── Summary ── */
 #bk-summary {
   padding: 12px 14px;
   background: linear-gradient(135deg, #2A2032 0%, #4A3858 100%);
-  border-radius: 12px; margin-bottom: 10px; display: none;
+  border-radius: 0px; margin-bottom: 10px; display: none;
   flex-wrap: wrap; gap: 12px;
 }
 #bk-summary.show { display: flex; }
@@ -230,7 +231,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 
 /* ── Error ── */
 #bk-err {
-  padding: 11px 14px; border-radius: 9px; margin-bottom: 12px;
+  padding: 11px 14px; border-radius: 0px; margin-bottom: 12px;
   background: #FFF0EE; border: 1px solid #F5C6C2;
   font-size: 13px; color: var(--red); display: none;
 }
