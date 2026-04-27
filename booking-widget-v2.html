@@ -11,10 +11,10 @@
 -->
 
 <!-- Shopify reads these as order line item properties -->
-<input type="hidden" id="bk-date-val"  name="properties[📅 Date]">
-<input type="hidden" id="bk-slot-val"  name="properties[⏰ Slot]">
-<input type="hidden" id="bk-area-val"  name="properties[📍 Area]">
-<input type="hidden" id="bk-price-val" name="properties[🚚 Delivery (KD)]">
+<input type="hidden" id="bk-date-val"  name="properties[📅 التاريخ]">
+<input type="hidden" id="bk-slot-val"  name="properties[⏰ فتحة]">
+<input type="hidden" id="bk-area-val"  name="properties[📍 المنطقة]">
+<input type="hidden" id="bk-price-val" name="properties[🚚 خدمة التوصيل (بالدينار الكويتي)]">
 
 <!-- Widget Mount Point -->
 <div id="bk-widget"></div>
@@ -256,8 +256,8 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 
   // ─── Constants ───────────────────────────────────────────────────
   var SLOTS = {
-    morning: { label: 'Morning', time: '6:30 AM – 8:30 AM', icon: '🌅' },
-    evening: { label: 'Evening', time: '2:30 PM – 6:30 PM', icon: '🌇' }
+    morning: { label: ':فترة التوصيل الصباحية', time: '6:30 AM – 8:30 AM', icon: '🌅' },
+    evening: { label: ':فترة التوصيل المسائية', time: '2:30 PM – 6:30 PM', icon: '🌇' }
   };
   var DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
