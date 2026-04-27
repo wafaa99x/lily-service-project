@@ -306,9 +306,9 @@ tbody tr:hover { background: var(--surface2); }
     <label class="login-label">Password</label>
     <input type="password" class="login-input" id="login-pass" placeholder="Enter admin password" />
     <label class="login-label">Supabase URL</label>
-    <input type="text" class="login-input" id="login-url" placeholder="https://xxxx.supabase.co" />
+    <input type="text" class="login-input" id="login-url" placeholder="https://xxxx.supabase.co" value="https://adcjzrstjrdxzfobcfbl.supabase.co" />
     <label class="login-label">Service Role Key</label>
-    <input type="password" class="login-input" id="login-key" placeholder="eyJhbGci..." />
+    <input type="password" class="login-input" id="login-key" placeholder="eyJhbGci..." value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkY2p6cnN0anJkeHpmb2JjZmJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzE5NjQwNiwiZXhwIjoyMDkyNzcyNDA2fQ.N95kmrO5OYrlhDZEodQiIvixnQt2evK3UqPy7_kyfng" />
     <button class="login-btn" onclick="doLogin()">Sign In →</button>
     <div class="login-error" id="login-error">Incorrect password. Try again.</div>
     <p style="font-size:11px;color:#94A3B8;margin-top:20px;text-align:center;">
@@ -338,9 +338,9 @@ tbody tr:hover { background: var(--surface2); }
         <div class="nav-item" onclick="showPage('orders-data')" id="nav-orders-data">
           <span class="nav-icon">🧾</span> Order Data
         </div>
-        <div class="nav-item" onclick="showPage('new-booking')" id="nav-new-booking">
+        <!-- <div class="nav-item" onclick="showPage('new-booking')" id="nav-new-booking">
           <span class="nav-icon">➕</span> Add Booking
-        </div>
+        </div> -->
         <div class="divider" style="margin:10px 0;"></div>
         <div class="nav-section-label">Settings</div>
         <div class="nav-item" onclick="showPage('blocks')" id="nav-blocks">
@@ -362,9 +362,9 @@ tbody tr:hover { background: var(--surface2); }
     <main class="main-content">
       <div id="shopify-sync-status" class="sync-pill">
         <span class="sync-dot"></span>
-        <span id="shopify-sync-status-text">Auto Sync: Not Connected</span>
+        <span id="shopify-sync-status-text">Sync: Not Connected</span>
       </div>
-      <div id="shopify-sync-last" class="sync-meta">Last webhook update: —</div>
+      <div id="shopify-sync-last" class="sync-meta">Last sync update: —</div>
 
       <!-- ===== DASHBOARD ===== -->
       <div class="page active" id="page-dashboard">
@@ -373,7 +373,7 @@ tbody tr:hover { background: var(--surface2); }
             <div class="page-title">Dashboard</div>
             <div class="page-subtitle" id="dash-date">Loading…</div>
           </div>
-          <button class="btn btn-accent" onclick="showPage('new-booking')">+ Add Booking</button>
+          <!-- <button class="btn btn-accent" onclick="showPage('new-booking')">+ Add Booking</button> -->
         </div>
 
         <div class="stats-row">
@@ -711,7 +711,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="page-header">
           <div>
             <div class="page-title">Products</div>
-            <div class="page-subtitle">Webhook-synced products and linked pairs</div>
+            <div class="page-subtitle">Synced products and linked pairs</div>
           </div>
           <button class="btn btn-outline" onclick="showSyncModal()">Shopify Connection</button>
         </div>
@@ -740,7 +740,7 @@ tbody tr:hover { background: var(--surface2); }
           <div style="padding:22px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
             <div>
               <div style="font-size:17px;font-weight:700;">🔗 Shopify Product Connection</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and enable automatic webhook/product sync</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and run the Shopify product sync</div>
             </div>
             <button onclick="closeSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
           </div>
@@ -748,7 +748,7 @@ tbody tr:hover { background: var(--surface2); }
           <div style="padding:22px 24px;">
             <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#92400E;line-height:1.6;">
               <strong>How this works:</strong><br>
-              Enter your Shopify domain and Admin API token once. The panel saves credentials and enables automatic updates from webhooks/realtime.
+              Enter your Shopify domain and Admin API token once. The panel saves credentials and runs pull-based updates from Shopify.
             </div>
 
             <div class="form-row cols-2" style="margin-bottom:14px;">
@@ -782,7 +782,7 @@ tbody tr:hover { background: var(--surface2); }
             </details>
 
             <button class="btn btn-accent" onclick="saveProductSyncSettings()" id="sync-fetch-btn" style="width:100%;">
-              Save & Enable Auto Sync
+              Save & Sync
             </button>
 
             <div id="sync-error" style="display:none;margin-top:12px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:13px;color:#DC2626;"></div>
@@ -808,13 +808,13 @@ tbody tr:hover { background: var(--surface2); }
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label class="form-label">Admin API Token *</label>
-              <input type="password" class="form-input" id="order-sync-token" placeholder="shpat_xxxxxxxxxxxx">
+              <input type="password" class="form-input" id="order-sync-token" placeholder="shpat_xxxxxxxxxxxx" >
             </div>
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#475569;margin-bottom:12px;">
               <input type="checkbox" id="order-sync-remember-token" style="width:14px;height:14px;"> Remember token on this browser
             </label>
             <div id="order-sync-error" style="display:none;margin-bottom:12px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12px;color:#DC2626;"></div>
-            <button class="btn btn-accent" id="order-sync-btn" onclick="saveOrderSyncSettings()" style="width:100%;">Save & Enable Auto Sync</button>
+            <button class="btn btn-accent" id="order-sync-btn" onclick="saveOrderSyncSettings()" style="width:100%;">Save & Sync Orders</button>
           </div>
         </div>
       </div>
@@ -837,7 +837,7 @@ let allZones    = [];
 const LS_SHOPIFY_DOMAIN = 'shopify_domain';
 const LS_SHOPIFY_TOKEN  = 'shopify_token';
 const SS_SHOPIFY_TOKEN  = 'shopify_token_session';
-const LS_LAST_WEBHOOK_UPDATE = 'last_webhook_update';
+const LS_LAST_SYNC_UPDATE = 'last_sync_update';
 const ORDER_CATCHUP_MS = 90000;
 let rtChannel = null;
 let refreshDebounceTimer = null;
@@ -947,13 +947,13 @@ function formatTs(iso) {
 function renderLastWebhookUpdate() {
   const el = document.getElementById('shopify-sync-last');
   if (!el) return;
-  const ts = localStorage.getItem(LS_LAST_WEBHOOK_UPDATE);
-  el.textContent = `Last webhook update: ${formatTs(ts)}`;
+  const ts = localStorage.getItem(LS_LAST_SYNC_UPDATE);
+  el.textContent = `Last sync update: ${formatTs(ts)}`;
 }
 
 function markWebhookUpdate() {
   const nowIso = new Date().toISOString();
-  localStorage.setItem(LS_LAST_WEBHOOK_UPDATE, nowIso);
+  localStorage.setItem(LS_LAST_SYNC_UPDATE, nowIso);
   renderLastWebhookUpdate();
 }
 
@@ -968,7 +968,7 @@ async function hydrateLastWebhookUpdateFromDb() {
 
     const latest = data && data[0] ? data[0] : null;
     if (latest?.created_at) {
-      localStorage.setItem(LS_LAST_WEBHOOK_UPDATE, latest.created_at);
+      localStorage.setItem(LS_LAST_SYNC_UPDATE, latest.created_at);
       renderLastWebhookUpdate();
     }
   } catch (e) {
@@ -1011,19 +1011,19 @@ function setupRealtimeSubscriptions() {
 
   rtChannel = sb.channel('admin-live-updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-      setSyncStatus('Auto Sync: Live (bookings updated)', true);
+      setSyncStatus('Sync: Live (bookings updated)', true);
       markWebhookUpdate();
       scheduleUiRefresh();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-      setSyncStatus('Auto Sync: Live (products updated)', true);
+      setSyncStatus('Sync: Live (products updated)', true);
       markWebhookUpdate();
       scheduleUiRefresh();
     })
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         if (hasShopifyCredentials()) {
-          setSyncStatus('Auto Sync: Connected + Realtime', true);
+          setSyncStatus('Sync: Connected + Realtime', true);
         } else {
           setSyncStatus('Realtime Connected (Shopify not connected)', false);
         }
@@ -1212,7 +1212,7 @@ function orderPropertySnapshot(r) {
 }
 
 function getStoredShopifyCredentials() {
-  const domain = localStorage.getItem(LS_SHOPIFY_DOMAIN) || 'snapstoress.myshopify.com';
+  const domain = localStorage.getItem(LS_SHOPIFY_DOMAIN) || 'lily-service-2.myshopify.com';
   const token = sessionStorage.getItem(SS_SHOPIFY_TOKEN) || localStorage.getItem(LS_SHOPIFY_TOKEN) || '';
   const remember = !!localStorage.getItem(LS_SHOPIFY_TOKEN);
   return { domain, token, remember };
@@ -1252,15 +1252,15 @@ async function runOrderCatchupSync(source) {
     });
 
     if ((json.inserted || 0) > 0) {
-      setSyncStatus('Auto Sync: Live (orders imported)', true);
+      setSyncStatus('Sync: Live (orders imported)', true);
       markWebhookUpdate();
       scheduleUiRefresh();
     } else if (source === 'startup') {
-      setSyncStatus('Auto Sync: Connected (catch-up ready)', true);
+      setSyncStatus('Sync: Connected (catch-up ready)', true);
     }
   } catch (e) {
     console.error('runOrderCatchupSync error:', e);
-    setSyncStatus('Auto Sync: Connected (webhook only)', true);
+    setSyncStatus('Sync: Connected', true);
   } finally {
     isOrderCatchupRunning = false;
   }
@@ -1277,7 +1277,7 @@ function setupAutoShopifySync() {
     return;
   }
 
-  setSyncStatus('Auto Sync: Connected', true);
+  setSyncStatus('Sync: Connected', true);
   runOrderCatchupSync('startup');
   orderCatchupTimer = setInterval(() => runOrderCatchupSync('interval'), ORDER_CATCHUP_MS);
 }
@@ -1328,7 +1328,7 @@ async function saveOrderSyncSettings() {
     errEl.style.display = 'block';
     console.error('saveOrderSyncSettings error:', e);
   } finally {
-    btn.textContent = 'Save & Enable Auto Sync';
+    btn.textContent = 'Save & Sync Orders';
     btn.disabled = false;
   }
 }
@@ -1533,7 +1533,7 @@ async function loadProducts() {
 
   if (!data || !data.length) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#94A3B8;">
-      No products yet. Open <strong>Shopify Connection</strong> to enable webhook-based product sync.
+      No products yet. Open <strong>Shopify Connection</strong> to run the Shopify product sync.
     </td></tr>`;
     return;
   }
@@ -1636,10 +1636,10 @@ async function saveProductSyncSettings() {
 
   } catch (e) {
     errEl.innerHTML = `<strong>⚠ ${e.message || 'Connection failed.'}</strong><br>
-      Check your domain/token and ensure Shopify webhooks are configured.`;
+      Check your domain/token and try syncing again.`;
     errEl.style.display = 'block';
   } finally {
-    btn.textContent = 'Save & Enable Auto Sync';
+    btn.textContent = 'Save & Sync Orders';
     btn.disabled = false;
   }
 }
