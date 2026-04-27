@@ -23,15 +23,15 @@
 // ============================================================
 //  ★  CHANGE THIS ONE LINE PER PRODUCT  ★
 // ============================================================
-var BK_PRODUCT_ID = "dafwa";
-// Options: "dafwa" | "naseem" | "product-3" | "product-4" | "product-5" | "product-6"
+var BK_PRODUCT_ID = "8811194319045";
+// Use the Shopify product ID for each product page.
 // ============================================================
 
-var BK_SUPABASE_URL = "https://xjenagylukeeeutljpak.supabase.co";
-var BK_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqZW5hZ3lsdWtlZWV1dGxqcGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODE0NzMsImV4cCI6MjA5MjU1NzQ3M30.qMNWJqWcl9MAMN4-2WlrdpuEdWZXjWO8zh8ecOzxueQ";
+var BK_SUPABASE_URL = "https://adcjzrstjrdxzfobcfbl.supabase.co";
+var BK_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkY2p6cnN0anJkeHpmb2JjZmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY0MDYsImV4cCI6MjA5Mjc3MjQwNn0.vDPAwlOAr9OaGHU-unHI3l3_guja_wLjhCAivZ8nscA";
 
 // Linked pairs — if one is booked, the other is blocked
-var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
+var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 </script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,41 +39,50 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 
 <style>
 #bk-widget {
-  --gold:      #B8860B;
-  --gold-lt:   #D4A843;
-  --gold-bg:   #FBF6EB;
-  --gold-border:#E8DCC8;
-  --dark:      #1A1108;
-  --mid:       #5C4A20;
-  --muted:     #9A8060;
-  --surface:   #FDFAF5;
+  --gold:      #8F6BA5;
+  --gold-lt:   #B99ACC;
+  --gold-bg:   #F6F1FA;
+  --gold-border:#E4D9EC;
+  --dark:      #241C2D;
+  --mid:       #51405F;
+  --muted:     #7E738A;
+  --surface:   #FFFFFF;
   --white:     #FFFFFF;
-  --green:     #2D6A4F;
-  --red:       #9B2226;
+  --green:     #2F7A59;
+  --red:       #B42318;
   --radius:    14px;
   font-family: 'DM Sans', sans-serif;
-  max-width: 500px;
-  margin: 24px 0 16px;
+  max-width: 460px;
+  margin: 18px 0 12px;
   color: var(--dark);
+  background: linear-gradient(180deg, rgba(143,107,165,0.08), rgba(143,107,165,0));
+  padding: 4px;
+  border-radius: 16px;
 }
 #bk-widget * { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Step card ── */
 .bk-card {
   border: 1px solid var(--gold-border);
-  border-radius: var(--radius);
+  border-radius: 16px;
   background: var(--surface);
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   overflow: hidden;
-  transition: box-shadow .2s, transform .2s;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+  box-shadow: 0 6px 18px rgba(42, 26, 54, 0.06);
 }
-.bk-card:focus-within { box-shadow: 0 0 0 3px rgba(184,134,11,.18); }
-.bk-card:hover { transform: translateY(-1px); }
+.bk-card:focus-within { box-shadow: 0 0 0 3px rgba(143,107,165,.18), 0 6px 18px rgba(42, 26, 54, 0.08); }
+.bk-card:hover { transform: translateY(-1px); border-color: #CFBDD9; }
+
+.bk-card.bk-card-invalid {
+  border-color: rgba(180, 35, 24, 0.45);
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.09), 0 8px 24px rgba(42, 26, 54, 0.08);
+}
 
 .bk-card-head {
   display: flex; align-items: center; gap: 10px;
-  padding: 13px 16px;
-  background: var(--gold-bg);
+  padding: 11px 14px;
+  background: linear-gradient(135deg, rgba(143,107,165,0.09), rgba(143,107,165,0.03));
   border-bottom: 1px solid var(--gold-border);
 }
 .bk-step-num {
@@ -87,19 +96,19 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 .bk-step-num.done { background: var(--green); }
 .bk-card-head h4 {
   font-family: 'DM Serif Display', serif;
-  font-size: 15px; font-weight: 400;
+  font-size: 14px; font-weight: 400;
   color: var(--mid);
 }
 
 /* ── Calendar ── */
-.bk-cal-wrap { padding: 14px 12px 12px; }
+.bk-cal-wrap { padding: 12px 10px 10px; }
 .bk-cal-nav {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .bk-cal-nav button {
   background: none; border: 1px solid var(--gold-border);
-  border-radius: 8px; width: 32px; height: 32px;
+  border-radius: 8px; width: 30px; height: 30px;
   cursor: pointer; color: var(--gold); font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   transition: all .15s;
@@ -108,7 +117,7 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 .bk-cal-nav button:disabled { opacity: .28; cursor: default; }
 .bk-cal-title {
   font-family: 'DM Serif Display', serif;
-  font-size: 16px; color: var(--mid);
+  font-size: 15px; color: var(--mid);
 }
 .bk-grid {
   display: grid; grid-template-columns: repeat(7,1fr); gap: 3px;
@@ -116,17 +125,17 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 .bk-dow {
   text-align: center; font-size: 10px; font-weight: 600;
   color: var(--muted); letter-spacing: .7px; text-transform: uppercase;
-  padding: 3px 0 6px;
+  padding: 2px 0 5px;
 }
 .bk-day {
   aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  border-radius: 8px; font-size: 13px; font-weight: 500;
+  border-radius: 7px; font-size: 12px; font-weight: 500;
   cursor: pointer; border: 1.5px solid transparent;
   transition: all .15s; color: var(--dark);
   position: relative; user-select: none;
 }
 .bk-day:hover:not(.bk-off):not(.bk-sel) { background: var(--gold-bg); border-color: var(--gold-lt); }
-.bk-day.bk-sel  { background: var(--gold); color: #fff; border-color: var(--gold); font-weight: 700; }
+.bk-day.bk-sel  { background: linear-gradient(135deg, var(--gold), #6F4F86); color: #fff; border-color: var(--gold); font-weight: 700; box-shadow: 0 8px 18px rgba(143,107,165,0.25); }
 .bk-day.bk-off  { background: #F5F0E8; color: #CBBFAE; cursor: not-allowed; opacity: 0.6; }
 .bk-day.bk-today:not(.bk-sel) { border-color: var(--gold-lt); color: var(--gold); font-weight: 700; }
 .bk-day.bk-empty { pointer-events: none; background: none; }
@@ -134,60 +143,90 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 /* ── Slots ── */
 .bk-slots { display: flex; gap: 12px; padding: 14px; }
 .bk-slot {
-  flex: 1; padding: 14px 10px; border-radius: 10px;
-  border: 1.5px solid var(--gold-border); background: var(--gold-bg);
+  flex: 1; padding: 12px 8px; border-radius: 10px;
+  border: 1.5px solid var(--gold-border); background: linear-gradient(180deg, #FBF8FD, #F7F2FA);
   cursor: pointer; transition: all .18s; text-align: center;
 }
-.bk-slot:hover:not(.bk-slot-na) { border-color: var(--gold); background: #F5E9CA; }
-.bk-slot.bk-slot-sel { border-color: var(--gold); background: var(--gold); color: #fff; }
+.bk-slot:hover { border-color: var(--gold); background: #F1EAF7; }
+.bk-slot.bk-slot-sel { border-color: var(--gold); background: linear-gradient(135deg, var(--gold), #705081); color: #fff; box-shadow: 0 8px 18px rgba(143,107,165,0.2); }
 .bk-slot.bk-slot-sel .bk-slot-lbl,
 .bk-slot.bk-slot-sel .bk-slot-time,
 .bk-slot.bk-slot-sel .bk-slot-st { color: rgba(255,255,255,.9); }
-.bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; }
+/* .bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; } */
 .bk-slot-ico  { font-size: 20px; margin-bottom: 4px; }
-.bk-slot-lbl  { display: block; font-size: 13px; font-weight: 600; color: var(--mid); }
-.bk-slot-time { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.bk-slot-ico  { font-size: 18px; margin-bottom: 3px; }
+.bk-slot-lbl  { display: block; font-size: 12px; font-weight: 600; color: var(--mid); }
+.bk-slot-time { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
 .bk-slot-st   { display: block; font-size: 10px; margin-top: 5px; font-weight: 600; }
 .bk-st-ok  { color: var(--green); }
 .bk-st-na  { color: var(--red); }
 .bk-st-chk { color: var(--muted); }
 
 .bk-slots-ph {
-  padding: 20px 14px; text-align: center;
+  padding: 16px 14px; text-align: center;
   color: var(--muted); font-size: 13px;
 }
 
 /* ── Area ── */
-.bk-area-wrap { padding: 14px; }
+.bk-area-wrap { padding: 12px 14px 14px; }
 .bk-area-sel {
-  width: 100%; padding: 11px 14px; border-radius: 9px;
+  width: 100%; padding: 10px 40px 10px 12px; border-radius: 10px;
   border: 1.5px solid var(--gold-border); background: var(--white);
   font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--dark);
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath fill='%23B8860B' d='M5 7 0 0h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath fill='%238F6BA5' d='M5 7 0 0h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 13px center;
   cursor: pointer; transition: border-color .15s;
 }
-.bk-area-sel:focus { outline: none; border-color: var(--gold); }
+.bk-area-sel:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(143,107,165,.12); }
+.bk-area-sel:hover { border-color: var(--gold-lt); }
+.bk-area-sel.bk-field-invalid {
+  border-color: rgba(180, 35, 24, 0.6);
+  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.08);
+}
 .bk-fee {
   margin-top: 8px; padding: 9px 13px;
-  background: #F0F8F4; border: 1px solid #B7DCC8;
+  background: #F4ECF8; border: 1px solid #D6C3E3;
   border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--green);
   display: none;
 }
 .bk-fee.show { display: block; }
 
+.bk-inline-error {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: #FFF6F4;
+  border: 1px solid rgba(180, 35, 24, 0.22);
+  color: var(--red);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.bk-required {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--gold);
+  background: rgba(143,107,165,0.08);
+  border: 1px solid rgba(143,107,165,0.18);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
 /* ── Summary ── */
 #bk-summary {
-  padding: 13px 16px;
-  background: linear-gradient(135deg, #1A1108 0%, #2C1E0A 100%);
-  border-radius: 12px; margin-bottom: 12px; display: none;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #2A2032 0%, #4A3858 100%);
+  border-radius: 12px; margin-bottom: 10px; display: none;
   flex-wrap: wrap; gap: 12px;
 }
 #bk-summary.show { display: flex; }
 .bk-sum-item { flex: 1; min-width: 90px; }
 .bk-sum-lbl { font-size: 9.5px; letter-spacing: .9px; text-transform: uppercase; color: #C9A86C; }
-.bk-sum-val { font-size: 12.5px; color: #FFF8EC; font-weight: 600; margin-top: 2px; }
+.bk-sum-val { font-size: 12px; color: #FFF8EC; font-weight: 600; margin-top: 2px; }
 
 /* ── Error ── */
 #bk-err {
@@ -240,6 +279,7 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
     linkedProductIds: [],
     fullBlockedDates: {},
     fullBookedDates: {},
+      validation: { slot: false, area: false },
     checking: false,
     liveRefreshTimer: null
   };
@@ -599,9 +639,10 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
   // ── Slot card ─────────────────────────────────────────────────────
   function renderSlotCard() {
     var done = !!state.selSlot;
+    var invalid = state.validation.slot && !state.selSlot;
     var head = '<div class="bk-card-head">' +
       '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '2') + '</div>' +
-      '<h4>Select Time Slot</h4></div>';
+      '<h4>Select Time Slot</h4>' + (!done ? '<span class="bk-required">Required</span>' : '') + '</div>';
 
     var body;
     if (!state.selDate) {
@@ -643,9 +684,10 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
   // ── Area card ─────────────────────────────────────────────────────
   function renderAreaCard() {
     var done = !!state.selAreaId;
+    var invalid = state.validation.area && !state.selAreaId;
     var head = '<div class="bk-card-head">' +
       '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '3') + '</div>' +
-      '<h4>Delivery Area</h4></div>';
+      '<h4>Delivery Area</h4>' + (!done ? '<span class="bk-required">Required</span>' : '') + '</div>';
 
     if (!state.zones.length) {
       return '<div class="bk-card">' + head +
@@ -665,8 +707,8 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
 
     return '<div class="bk-card">' + head +
       '<div class="bk-area-wrap">' +
-      '<select class="bk-area-sel" id="bk-area-sel">' + opts + '</select>' +
-      fee + '</div></div>';
+      '<select class="bk-area-sel' + (invalid ? ' bk-field-invalid' : '') + '" id="bk-area-sel">' + opts + '</select>' +
+      fee + (invalid ? '<div class="bk-inline-error">Please choose your delivery area to continue.</div>' : '') + '</div></div>';
   }
 
   // ── Summary ───────────────────────────────────────────────────────
@@ -720,6 +762,7 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
     document.querySelectorAll('.bk-slot:not(.bk-slot-na)').forEach(function(el) {
       el.addEventListener('click', function() {
         state.selSlot = el.dataset.slot;
+        state.validation.slot = false;
         clearErr();
         render();
       });
@@ -738,6 +781,7 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
       } else {
         state.selAreaId = state.selAreaName = state.selPrice = null;
       }
+      state.validation.area = false;
       clearErr();
       render();
     });
@@ -816,10 +860,16 @@ var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
         return;
       }
       if (!state.selSlot) {
+        state.validation.slot = true;
+        state.validation.area = false;
+        render();
         showErr('Please select a time slot.');
         return;
       }
       if (!state.selAreaId) {
+        state.validation.area = true;
+        state.validation.slot = false;
+        render();
         showErr('Please select your delivery area.');
         return;
       }
