@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+/* ======== BASE ======== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --sidebar-bg: #0F1623;
+  --sidebar-border: #1E2A3A;
+  --accent: #F4A62A;
+  --accent-dark: #C8831A;
+  --bg: #F0F4F8;
+  --surface: #FFFFFF;
+  --surface2: #F7F9FC;
+  --text: #1E293B;
+  --text-muted: #64748B;
+  --border: #E2E8F0;
+  --green: #16A34A;
+  --red: #DC2626;
+  --radius: 12px;
+}
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ======== LOGIN SCREEN ======== */
+#login-screen {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #0F1623 0%, #1A2A3F 100%);
+}
+.login-card {
+  background: #fff; border-radius: 20px;
+  padding: 48px 40px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo .lmark { font-size: 36px; }
+.login-logo h1 { font-size: 22px; font-weight: 700; color: #0F1623; margin-top: 10px; }
+.login-logo p  { font-size: 13px; color: #64748B; margin-top: 4px; }
+.login-label  { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; display: block; letter-spacing: 0.5px; text-transform: uppercase; }
+.login-input  {
+  width: 100%; padding: 12px 16px; border-radius: 10px;
+  border: 1.5px solid #E2E8F0; font-size: 14px;
+  font-family: inherit; margin-bottom: 20px;
+  transition: border-color 0.15s;
+}
+.login-input:focus { outline: none; border-color: #F4A62A; }
+.login-btn {
+  width: 100%; padding: 13px;
+  background: #0F1623; color: #fff;
+  border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+  font-family: inherit;
+}
+.login-btn:hover { background: #1A2A3F; }
+.login-error {
+  color: #DC2626; font-size: 13px;
+  text-align: center; margin-top: 14px; display: none;
+}
+
+/* ======== APP LAYOUT ======== */
+#app { display: none; min-height: 100vh; }
+.app-layout { display: flex; }
+
+/* ======== SIDEBAR ======== */
+.sidebar {
+  width: 240px; min-height: 100vh;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; bottom: 0;
+  z-index: 100;
+}
+.sidebar-brand {
+  padding: 22px 20px 18px;
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.sidebar-brand .brand-name {
+  font-size: 15px; font-weight: 700; color: #fff;
+  letter-spacing: 0.3px;
+}
+.sidebar-brand .brand-sub {
+  font-size: 11px; color: #64748B; margin-top: 2px;
+}
+.sidebar-nav { padding: 16px 12px; flex: 1; }
+.nav-section-label {
+  font-size: 10px; font-weight: 700; color: #3A4F6A;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  padding: 0 8px 8px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px;
+  cursor: pointer; transition: all 0.15s;
+  color: #94A3B8; font-size: 13.5px; font-weight: 500;
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: #1E2A3A; color: #CBD5E1; }
+.nav-item.active { background: rgba(244,166,42,0.15); color: #F4A62A; }
+.nav-item .nav-icon { font-size: 16px; flex-shrink: 0; }
+.sidebar-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--sidebar-border);
+}
+.logout-btn {
+  background: none; border: 1px solid #2A3A50;
+  color: #64748B; padding: 8px 16px;
+  border-radius: 8px; cursor: pointer;
+  font-size: 12px; font-family: inherit;
+  transition: all 0.15s; width: 100%;
+}
+.logout-btn:hover { border-color: #DC2626; color: #DC2626; }
+
+/* ======== MAIN CONTENT ======== */
+.main-content {
+  margin-left: 240px; flex: 1; padding: 30px;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title { font-size: 22px; font-weight: 700; }
+.page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+
+/* ======== CARDS ======== */
+.card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 20px; }
+
+/* ======== STATS ROW ======== */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-bottom: 24px;
+}
+.stat-card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 18px 20px;
+}
+.stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.6px; text-transform: uppercase; }
+.stat-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ======== TABLE ======== */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+thead th {
+  text-align: left; padding: 10px 14px;
+  background: var(--surface2); font-weight: 600; font-size: 11px;
+  letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+tbody td {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+
+/* ======== BADGES ======== */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600;
+}
+.badge-morning { background: #FFF7ED; color: #C2410C; }
+.badge-evening { background: #EFF6FF; color: #1D4ED8; }
+.badge-blocked { background: #FEF2F2; color: #DC2626; }
+.badge-active  { background: #F0FDF4; color: #16A34A; }
+
+/* ======== FORMS ======== */
+.form-row { display: grid; gap: 14px; margin-bottom: 14px; }
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 12px; font-weight: 600; color: #475569; }
+.form-input, .form-select {
+  padding: 10px 12px; border-radius: 8px;
+  border: 1.5px solid var(--border); font-size: 13.5px;
+  font-family: inherit; background: #fff;
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+
+/* ======== BUTTONS ======== */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 18px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: none; font-family: inherit; transition: all 0.15s;
+}
+.btn-primary { background: #0F1623; color: #fff; }
+.btn-primary:hover { background: #1A2A3F; }
+.btn-accent  { background: var(--accent); color: #fff; }
+.btn-accent:hover  { background: var(--accent-dark); }
+.btn-danger  { background: #DC2626; color: #fff; }
+.btn-danger:hover  { background: #B91C1C; }
+.btn-outline { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: #94A3B8; color: var(--text); }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+/* ======== ALERTS ======== */
+.alert {
+  padding: 12px 16px; border-radius: 10px;
+  font-size: 13px; margin-bottom: 16px; display: none;
+}
+.alert.visible { display: block; }
+.alert-success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; }
+.alert-error   { background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; }
+
+/* ======== DIVIDER ======== */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ======== LOADING ======== */
+.loading-row td {
+  text-align: center; padding: 30px;
+  color: var(--text-muted); font-size: 13px;
+}
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  margin-bottom: 16px;
+}
+
+.sync-meta {
+  font-size: 11px;
+  color: #64748B;
+  margin: -10px 0 14px 6px;
+}
+
+.sync-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #94A3B8;
+}
+
+.sync-pill.live .sync-dot {
+  background: #16A34A;
+  box-shadow: 0 0 0 0 rgba(22,163,74,.45);
+  animation: syncPulse 1.8s infinite;
+}
+
+@keyframes syncPulse {
+  70% { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+  100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+}
+
+/* ======== RESPONSIVE ======== */
+@media (max-width: 900px) {
+  .sidebar { width: 200px; }
+  .main-content { margin-left: 200px; padding: 20px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="lmark">🗂️</div>
+      <h1>Booking Admin</h1>
+      <p>Store management panel</p>
+    </div>
+    <label class="login-label">Password</label>
+    <input type="password" class="login-input" id="login-pass" placeholder="Enter admin password" />
+    <label class="login-label">Supabase URL</label>
+    <input type="text" class="login-input" id="login-url" placeholder="https://xxxx.supabase.co" />
+    <label class="login-label">Service Role Key</label>
+    <input type="password" class="login-input" id="login-key" placeholder="eyJhbGci..." />
+    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <div class="login-error" id="login-error">Incorrect password. Try again.</div>
+    <p style="font-size:11px;color:#94A3B8;margin-top:20px;text-align:center;">
+      Service Role Key is stored only in your browser session.<br>Never share this page URL publicly.
+    </p>
+  </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app">
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-name">📦 Booking Admin</div>
+        <div class="brand-sub">Store Management</div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" onclick="showPage('bookings')" id="nav-bookings">
+          <span class="nav-icon">📋</span> All Bookings
+        </div>
+        <div class="nav-item" onclick="showPage('orders-data')" id="nav-orders-data">
+          <span class="nav-icon">🧾</span> Order Data
+        </div>
+        <div class="nav-item" onclick="showPage('new-booking')" id="nav-new-booking">
+          <span class="nav-icon">➕</span> Add Booking
+        </div>
+        <div class="divider" style="margin:10px 0;"></div>
+        <div class="nav-section-label">Settings</div>
+        <div class="nav-item" onclick="showPage('blocks')" id="nav-blocks">
+          <span class="nav-icon">🚫</span> Block Dates
+        </div>
+        <div class="nav-item" onclick="showPage('zones')" id="nav-zones">
+          <span class="nav-icon">📍</span> Delivery Zones
+        </div>
+        <div class="nav-item" onclick="showPage('products')" id="nav-products">
+          <span class="nav-icon">🛍️</span> Products
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <div id="shopify-sync-status" class="sync-pill">
+        <span class="sync-dot"></span>
+        <span id="shopify-sync-status-text">Auto Sync: Not Connected</span>
+      </div>
+      <div id="shopify-sync-last" class="sync-meta">Last webhook update: —</div>
+
+      <!-- ===== DASHBOARD ===== -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-subtitle" id="dash-date">Loading…</div>
+          </div>
+          <button class="btn btn-accent" onclick="showPage('new-booking')">+ Add Booking</button>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">Today's Bookings</div>
+            <div class="stat-value" id="stat-today">—</div>
+            <div class="stat-sub">out of 12 possible slots</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">This Week</div>
+            <div class="stat-value" id="stat-week">—</div>
+            <div class="stat-sub">confirmed bookings</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Blocks</div>
+            <div class="stat-value" id="stat-blocks">—</div>
+            <div class="stat-sub">upcoming blocked slots</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Delivery Zones</div>
+            <div class="stat-value" id="stat-zones">—</div>
+            <div class="stat-sub">active areas</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">📅 Upcoming Bookings (Next 7 Days)</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Product</th><th>Slot</th>
+                  <th>Customer</th><th>Area</th><th>Price (KD)</th><th>Order ID</th>
+                </tr>
+              </thead>
+              <tbody id="upcoming-tbody">
+                <tr class="loading-row"><td colspan="7"><span class="spinner"></span>Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ALL BOOKINGS ===== -->
+      <div class="page" id="page-bookings">
+        <div class="page-header">
+          <div>
+            <div class="page-title">All Bookings</div>
+            <div class="page-subtitle">Full booking history</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-outline btn-sm" onclick="showOrderSyncModal()">Shopify Connection</button>
+            <input type="date" class="form-input" id="filter-date" style="width:160px;" oninput="loadBookings()">
+            <select class="form-select" id="filter-product" style="width:160px;" onchange="loadBookings()">
+              <option value="">All products</option>
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('filter-date').value='';document.getElementById('filter-product').value='';loadBookings()">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Product</th><th>Slot</th>
+                  <th>Customer</th><th>Phone</th><th>Area</th><th>Price (KD)</th><th>Order ID</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bookings-tbody">
+                <tr class="loading-row"><td colspan="9"><span class="spinner"></span>Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ORDER DATA ===== -->
+      <div class="page" id="page-orders-data">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Order Data</div>
+            <div class="page-subtitle">Shopify paid orders with booking-linked line item details</div>
+          </div>
+          <button class="btn btn-outline" onclick="showOrderSyncModal()">Shopify Connection</button>
+        </div>
+
+        <div class="stats-row" style="margin-bottom:16px;">
+          <div class="stat-card">
+            <div class="stat-label">Unique Shopify Orders</div>
+            <div class="stat-value" id="order-stat-unique">—</div>
+            <div class="stat-sub">orders with booking data</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Booking Line Items</div>
+            <div class="stat-value" id="order-stat-lines">—</div>
+            <div class="stat-sub">rows imported from orders</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">With Delivery Area</div>
+            <div class="stat-value" id="order-stat-area">—</div>
+            <div class="stat-sub">rows with mapped area</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">With Customer Phone</div>
+            <div class="stat-value" id="order-stat-phone">—</div>
+            <div class="stat-sub">rows with contact info</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-body" style="padding:14px 16px;">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="text" class="form-input" id="order-filter-id" placeholder="Search Shopify Order ID" style="width:220px;" oninput="loadOrderData()">
+              <input type="date" class="form-input" id="order-filter-date" style="width:170px;" oninput="loadOrderData()">
+              <select class="form-select" id="order-filter-product" style="width:180px;" onchange="loadOrderData()">
+                <option value="">All products</option>
+              </select>
+              <button class="btn btn-outline btn-sm" onclick="clearOrderFilters()">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">🧾 Synced Order Line Items</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Shopify Order</th><th>Product</th><th>Date</th><th>Slot</th>
+                  <th>Customer</th><th>Phone</th><th>Email</th><th>Area</th><th>Price (KD)</th><th>Line Item Properties</th><th>Source Note</th>
+                </tr>
+              </thead>
+              <tbody id="orders-data-tbody">
+                <tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ADD BOOKING ===== -->
+      <div class="page" id="page-new-booking">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Add Booking</div>
+            <div class="page-subtitle">Manually log a confirmed order</div>
+          </div>
+        </div>
+
+        <div class="alert alert-success" id="booking-success">✅ Booking saved successfully!</div>
+        <div class="alert alert-error"   id="booking-error">⚠ Error saving booking. See console.</div>
+
+        <div class="card" style="max-width:640px;">
+          <div class="card-header">📋 Booking Details</div>
+          <div class="card-body">
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Product *</label>
+                <select class="form-select" id="nb-product"><option value="">Select product…</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Date *</label>
+                <input type="date" class="form-input" id="nb-date">
+              </div>
+            </div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Slot *</label>
+                <select class="form-select" id="nb-slot">
+                  <option value="">Select slot…</option>
+                  <option value="morning">Morning (6:30 AM – 8:30 AM)</option>
+                  <option value="evening">Evening (2:30 PM – 6:30 PM)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Delivery Area *</label>
+                <select class="form-select" id="nb-area"><option value="">Select area…</option></select>
+              </div>
+            </div>
+            <div class="form-row cols-3">
+              <div class="form-group">
+                <label class="form-label">Delivery Price (KD)</label>
+                <input type="number" class="form-input" id="nb-price" step="0.001" placeholder="e.g. 1.500">
+              </div>
+              <div class="form-group" style="grid-column: span 2;">
+                <label class="form-label">Shopify Order ID</label>
+                <input type="text" class="form-input" id="nb-orderid" placeholder="#1001">
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="form-row cols-2">
+              <div class="form-group">
+                <label class="form-label">Customer Name</label>
+                <input type="text" class="form-input" id="nb-name" placeholder="Full name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Customer Phone</label>
+                <input type="text" class="form-input" id="nb-phone" placeholder="+965 XXXX XXXX">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Customer Email</label>
+                <input type="email" class="form-input" id="nb-email" placeholder="customer@email.com">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Notes</label>
+                <input type="text" class="form-input" id="nb-notes" placeholder="Any additional notes…">
+              </div>
+            </div>
+            <button class="btn btn-accent" style="margin-top:4px;" onclick="saveNewBooking()">
+              Save Booking
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BLOCK DATES ===== -->
+      <div class="page" id="page-blocks">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Block Dates & Slots</div>
+            <div class="page-subtitle">Manually prevent bookings for specific dates or time slots</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;">
+          <div class="card">
+            <div class="card-header">🚫 Add Block</div>
+            <div class="card-body">
+              <div class="alert alert-success" id="block-success">✅ Block saved!</div>
+              <div class="alert alert-error"   id="block-error">⚠ Error. Check console.</div>
+
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Date *</label>
+                <input type="date" class="form-input" id="blk-date">
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Block Which Slot?</label>
+                <select class="form-select" id="blk-slot">
+                  <option value="all">Entire Day (both slots)</option>
+                  <option value="morning">Morning only (6:30 – 8:30 AM)</option>
+                  <option value="evening">Evening only (2:30 – 6:30 PM)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Apply To</label>
+                <select class="form-select" id="blk-product">
+                  <option value="">All Products</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:18px;">
+                <label class="form-label">Reason (optional)</label>
+                <input type="text" class="form-input" id="blk-reason" placeholder="e.g. Holiday, maintenance…">
+              </div>
+              <button class="btn btn-danger" onclick="saveBlock()">Block This Date/Slot</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">📋 Active Blocks</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Slot</th><th>Product</th><th>Reason</th><th></th></tr>
+                </thead>
+                <tbody id="blocks-tbody">
+                  <tr class="loading-row"><td colspan="5"><span class="spinner"></span>Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== DELIVERY ZONES ===== -->
+      <div class="page" id="page-zones">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Delivery Zones</div>
+            <div class="page-subtitle">Add, edit, or remove Kuwait delivery areas and prices</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;">
+          <div class="card">
+            <div class="card-header" id="zone-form-title">➕ Add Zone</div>
+            <div class="card-body">
+              <div class="alert alert-success" id="zone-success">✅ Saved!</div>
+              <div class="alert alert-error"   id="zone-error">⚠ Error.</div>
+
+              <input type="hidden" id="zone-edit-id">
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Area Name *</label>
+                <input type="text" class="form-input" id="zone-name" placeholder="e.g. Salmiya">
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Delivery Price (KD) *</label>
+                <input type="number" class="form-input" id="zone-price" step="0.001" placeholder="1.500">
+              </div>
+              <div class="form-group" style="margin-bottom:18px;">
+                <label class="form-label">Sort Order</label>
+                <input type="number" class="form-input" id="zone-sort" placeholder="0">
+              </div>
+              <div style="display:flex;gap:10px;">
+                <button class="btn btn-accent" onclick="saveZone()">Save Zone</button>
+                <button class="btn btn-outline btn-sm" onclick="resetZoneForm()">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">📍 All Zones</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Area</th><th>Price (KD)</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="zones-tbody">
+                  <tr class="loading-row"><td colspan="4"><span class="spinner"></span>Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PRODUCTS ===== -->
+      <div class="page" id="page-products">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Products</div>
+            <div class="page-subtitle">Webhook-synced products and linked pairs</div>
+          </div>
+          <button class="btn btn-outline" onclick="showSyncModal()">Shopify Connection</button>
+        </div>
+
+        <div class="alert alert-success" id="products-success"></div>
+        <div class="alert alert-error"   id="products-error"></div>
+
+        <div class="card">
+          <div class="card-header">🛍️ Products in Database</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Image</th><th>Name</th><th>Shopify ID</th><th>DB Key</th><th>Linked To</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="products-tbody">
+                <tr class="loading-row"><td colspan="7"><span class="spinner"></span>Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SHOPIFY PRODUCT CONNECTION MODAL ===== -->
+      <div id="sync-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.3);">
+          <div style="padding:22px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:17px;font-weight:700;">🔗 Shopify Product Connection</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and enable automatic webhook/product sync</div>
+            </div>
+            <button onclick="closeSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
+          </div>
+
+          <div style="padding:22px 24px;">
+            <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#92400E;line-height:1.6;">
+              <strong>How this works:</strong><br>
+              Enter your Shopify domain and Admin API token once. The panel saves credentials and enables automatic updates from webhooks/realtime.
+            </div>
+
+            <div class="form-row cols-2" style="margin-bottom:14px;">
+              <div class="form-group">
+                <label class="form-label">Shopify Store Domain *</label>
+                <input type="text" class="form-input" id="sync-domain" placeholder="yourstore.myshopify.com" value="snapstoress.myshopify.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Admin API Token *
+                  <span style="font-weight:400;color:#94A3B8;font-size:10px;margin-left:4px;">(how to get it ↓)</span>
+                </label>
+                <input type="password" class="form-input" id="sync-token" placeholder="shpat_xxxxxxxxxxxx">
+              </div>
+            </div>
+
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#475569;margin-bottom:12px;">
+              <input type="checkbox" id="sync-remember-token" style="width:14px;height:14px;"> Remember token on this browser
+            </label>
+
+            <details style="margin-bottom:18px;font-size:12px;color:#475569;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+              <summary style="cursor:pointer;font-weight:600;color:#334155;">How to get your Shopify Admin API Token</summary>
+              <ol style="margin-top:10px;padding-left:18px;line-height:2;">
+                <li>Shopify Admin → <strong>Settings</strong> → <strong>Apps and sales channels</strong></li>
+                <li>Click <strong>Develop apps</strong> → <strong>Create an app</strong></li>
+                <li>Name it anything (e.g. "Booking Sync")</li>
+                <li>Click <strong>Configure Admin API scopes</strong></li>
+                <li>Enable: <strong>read_products</strong> → Save</li>
+                <li>Click <strong>Install app</strong> → <strong>Install</strong></li>
+                <li>Copy the <strong>Admin API access token</strong> (starts with <code>shpat_</code>)</li>
+              </ol>
+            </details>
+
+            <button class="btn btn-accent" onclick="saveProductSyncSettings()" id="sync-fetch-btn" style="width:100%;">
+              Save & Enable Auto Sync
+            </button>
+
+            <div id="sync-error" style="display:none;margin-top:12px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:13px;color:#DC2626;"></div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== ORDER SYNC MODAL ===== -->
+      <div id="order-sync-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 80px rgba(0,0,0,0.3);">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:17px;font-weight:700;">🧾 Shopify Order Connection</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and enable automatic paid-order import</div>
+            </div>
+            <button onclick="closeOrderSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
+          </div>
+          <div style="padding:18px 22px;">
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Shopify Store Domain *</label>
+              <input type="text" class="form-input" id="order-sync-domain" placeholder="yourstore.myshopify.com">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label">Admin API Token *</label>
+              <input type="password" class="form-input" id="order-sync-token" placeholder="shpat_xxxxxxxxxxxx">
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#475569;margin-bottom:12px;">
+              <input type="checkbox" id="order-sync-remember-token" style="width:14px;height:14px;"> Remember token on this browser
+            </label>
+            <div id="order-sync-error" style="display:none;margin-bottom:12px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12px;color:#DC2626;"></div>
+            <button class="btn btn-accent" id="order-sync-btn" onclick="saveOrderSyncSettings()" style="width:100%;">Save & Enable Auto Sync</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ==================== SCRIPTS ==================== -->
+<script>
+// ──────────────────────────────────────────────────────────────────
+// CONFIGURATION
+// Change this password to whatever you want
+// ──────────────────────────────────────────────────────────────────
+const ADMIN_PASSWORD = 'admin2024';  // ← CHANGE THIS
+
+let sb = null;
+let allProducts = [];
+let allZones    = [];
+const LS_SHOPIFY_DOMAIN = 'shopify_domain';
+const LS_SHOPIFY_TOKEN  = 'shopify_token';
+const SS_SHOPIFY_TOKEN  = 'shopify_token_session';
+const LS_LAST_WEBHOOK_UPDATE = 'last_webhook_update';
+const ORDER_CATCHUP_MS = 90000;
+let rtChannel = null;
+let refreshDebounceTimer = null;
+let orderCatchupTimer = null;
+let isOrderCatchupRunning = false;
+
+// ─── LOGIN ────────────────────────────────────────────────────────
+function doLogin() {
+  const pass = document.getElementById('login-pass').value;
+  const url  = document.getElementById('login-url').value.trim();
+  const key  = document.getElementById('login-key').value.trim();
+
+  if (pass !== ADMIN_PASSWORD) {
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+  if (!url || !key) {
+    document.getElementById('login-error').textContent = 'Enter Supabase URL and Service Role Key.';
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+
+  sb = supabase.createClient(url, key);
+
+  // Store in session
+  sessionStorage.setItem('sb_url', url);
+  sessionStorage.setItem('sb_key', key);
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  initApp();
+}
+
+function doLogout() {
+  sessionStorage.clear();
+  location.reload();
+}
+
+// Auto-restore session
+(function() {
+  const url = sessionStorage.getItem('sb_url');
+  const key = sessionStorage.getItem('sb_key');
+  if (url && key) {
+    document.getElementById('login-url').value = url;
+    document.getElementById('login-key').value = key;
+    document.getElementById('login-pass').value = ADMIN_PASSWORD;
+  }
+})();
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ─── PAGE NAVIGATION ──────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const page = document.getElementById(`page-${name}`);
+  const nav  = document.getElementById(`nav-${name}`);
+  if (page) page.classList.add('active');
+  if (nav)  nav.classList.add('active');
+
+  // Load data for the page
+  if (name === 'dashboard')    loadDashboard();
+  if (name === 'bookings')     loadBookings();
+  if (name === 'orders-data')  loadOrderData();
+  if (name === 'blocks')       loadBlocks();
+  if (name === 'zones')        loadZones();
+  if (name === 'products')     loadProducts();
+  if (name === 'new-booking')  populateNewBookingForm();
+
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+async function initApp() {
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-KW', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+  });
+
+  // Load products into cache
+  const { data } = await sb.from('products').select('*').eq('is_active', true);
+  allProducts = data || [];
+
+  const { data: zones } = await sb.from('delivery_zones').select('*').order('sort_order');
+  allZones = zones || [];
+
+  loadDashboard();
+  populateProductFilters();
+  renderLastWebhookUpdate();
+  setupAutoShopifySync();
+  setupRealtimeSubscriptions();
+  hydrateLastWebhookUpdateFromDb();
+}
+
+function formatTs(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-KW', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}
+
+function renderLastWebhookUpdate() {
+  const el = document.getElementById('shopify-sync-last');
+  if (!el) return;
+  const ts = localStorage.getItem(LS_LAST_WEBHOOK_UPDATE);
+  el.textContent = `Last webhook update: ${formatTs(ts)}`;
+}
+
+function markWebhookUpdate() {
+  const nowIso = new Date().toISOString();
+  localStorage.setItem(LS_LAST_WEBHOOK_UPDATE, nowIso);
+  renderLastWebhookUpdate();
+}
+
+async function hydrateLastWebhookUpdateFromDb() {
+  if (!sb) return;
+  try {
+    const { data } = await sb.from('bookings')
+      .select('created_at,shopify_order_id')
+      .not('shopify_order_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    const latest = data && data[0] ? data[0] : null;
+    if (latest?.created_at) {
+      localStorage.setItem(LS_LAST_WEBHOOK_UPDATE, latest.created_at);
+      renderLastWebhookUpdate();
+    }
+  } catch (e) {
+    console.error('hydrateLastWebhookUpdateFromDb error:', e);
+  }
+}
+
+function setSyncStatus(text, isLive) {
+  const pill = document.getElementById('shopify-sync-status');
+  const el = document.getElementById('shopify-sync-status-text');
+  if (el) el.textContent = text;
+  if (pill) {
+    if (isLive) pill.classList.add('live');
+    else pill.classList.remove('live');
+  }
+}
+
+function scheduleUiRefresh() {
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  refreshDebounceTimer = setTimeout(async () => {
+    const active = document.querySelector('.page.active')?.id || '';
+    if (active === 'page-dashboard') loadDashboard();
+    if (active === 'page-bookings') loadBookings();
+    if (active === 'page-orders-data') loadOrderData();
+    if (active === 'page-products') {
+      const { data } = await sb.from('products').select('*');
+      allProducts = data || [];
+      loadProducts();
+      populateProductFilters();
+    }
+  }, 220);
+}
+
+function setupRealtimeSubscriptions() {
+  if (!sb) return;
+  if (rtChannel) {
+    sb.removeChannel(rtChannel);
+    rtChannel = null;
+  }
+
+  rtChannel = sb.channel('admin-live-updates')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+      setSyncStatus('Auto Sync: Live (bookings updated)', true);
+      markWebhookUpdate();
+      scheduleUiRefresh();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+      setSyncStatus('Auto Sync: Live (products updated)', true);
+      markWebhookUpdate();
+      scheduleUiRefresh();
+    })
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        if (hasShopifyCredentials()) {
+          setSyncStatus('Auto Sync: Connected + Realtime', true);
+        } else {
+          setSyncStatus('Realtime Connected (Shopify not connected)', false);
+        }
+      }
+    });
+}
+
+function populateProductFilters() {
+  const selects = ['filter-product', 'order-filter-product', 'nb-product', 'blk-product'];
+  for (const id of selects) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    const hasAll = id !== 'nb-product';
+    const opts = hasAll ? `<option value="">All Products</option>` : `<option value="">Select product…</option>`;
+    el.innerHTML = opts + allProducts.map(p =>
+      `<option value="${p.id}">${p.name}</option>`
+    ).join('');
+  }
+
+  // Populate area dropdown in new booking form
+  const areaEl = document.getElementById('nb-area');
+  if (areaEl) {
+    areaEl.innerHTML = `<option value="">Select area…</option>` +
+      allZones.map(z => `<option value="${z.area_name}" data-price="${z.price}">${z.area_name} — ${parseFloat(z.price).toFixed(3)} KD</option>`).join('');
+    areaEl.addEventListener('change', e => {
+      const opt = e.target.selectedOptions[0];
+      if (opt && opt.dataset.price) document.getElementById('nb-price').value = parseFloat(opt.dataset.price).toFixed(3);
+    });
+  }
+}
+
+function productNameFor(id) {
+  return allProducts.find(p => p.id === id)?.name || id;
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────
+async function loadDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
+  const weekStr = weekEnd.toISOString().split('T')[0];
+
+  const [todayRes, weekRes, blocksRes, zonesRes, upcomingRes] = await Promise.all([
+    sb.from('bookings').select('id', { count: 'exact' }).eq('booking_date', today),
+    sb.from('bookings').select('id', { count: 'exact' }).gte('booking_date', today).lte('booking_date', weekStr),
+    sb.from('blocked_slots').select('id', { count: 'exact' }).gte('block_date', today),
+    sb.from('delivery_zones').select('id', { count: 'exact' }).eq('is_active', true),
+    sb.from('bookings').select('*').gte('booking_date', today).lte('booking_date', weekStr).order('booking_date').order('slot')
+  ]);
+
+  document.getElementById('stat-today').textContent  = todayRes.count  ?? '—';
+  document.getElementById('stat-week').textContent   = weekRes.count   ?? '—';
+  document.getElementById('stat-blocks').textContent = blocksRes.count ?? '—';
+  document.getElementById('stat-zones').textContent  = zonesRes.count  ?? '—';
+
+  const tbody = document.getElementById('upcoming-tbody');
+  const rows = upcomingRes.data || [];
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#94A3B8;">No upcoming bookings</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.booking_date}</td>
+      <td>${productNameFor(r.product_id)}</td>
+      <td>${slotBadge(r.slot)}</td>
+      <td>${r.customer_name || '—'}</td>
+      <td>${r.delivery_area || '—'}</td>
+      <td>${r.delivery_price ? parseFloat(r.delivery_price).toFixed(3) : '—'}</td>
+      <td>${r.shopify_order_id || '—'}</td>
+    </tr>`).join('');
+}
+
+// ─── ALL BOOKINGS ─────────────────────────────────────────────────
+async function loadBookings() {
+  const tbody = document.getElementById('bookings-tbody');
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="9"><span class="spinner"></span>Loading…</td></tr>`;
+
+  let query = sb.from('bookings').select('*').order('booking_date', { ascending: false });
+
+  const filterDate = document.getElementById('filter-date')?.value;
+  const filterProd = document.getElementById('filter-product')?.value;
+  if (filterDate) query = query.eq('booking_date', filterDate);
+  if (filterProd) query = query.eq('product_id', filterProd);
+
+  const { data, error } = await query.limit(200);
+  if (error || !data.length) {
+    if (error) console.error('loadBookings error:', error);
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:#94A3B8;">${error ? 'Error loading bookings' : 'No bookings found'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td>${r.booking_date}</td>
+      <td>${productNameFor(r.product_id)}</td>
+      <td>${slotBadge(r.slot)}</td>
+      <td>${r.customer_name || '—'}</td>
+      <td>${r.customer_phone || '—'}</td>
+      <td>${r.delivery_area || '—'}</td>
+      <td>${r.delivery_price ? parseFloat(r.delivery_price).toFixed(3) : '—'}</td>
+      <td>${r.shopify_order_id || '—'}</td>
+      <td>
+        <button class="btn btn-danger btn-sm" onclick="deleteBooking('${r.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+function clearOrderFilters() {
+  document.getElementById('order-filter-id').value = '';
+  document.getElementById('order-filter-date').value = '';
+  document.getElementById('order-filter-product').value = '';
+  loadOrderData();
+}
+
+async function loadOrderData() {
+  const tbody = document.getElementById('orders-data-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="11"><span class="spinner"></span>Loading…</td></tr>`;
+
+  let query = sb.from('bookings')
+    .select('*')
+    .not('shopify_order_id', 'is', null)
+    .order('created_at', { ascending: false });
+
+  const orderId = document.getElementById('order-filter-id')?.value?.trim();
+  const orderDate = document.getElementById('order-filter-date')?.value;
+  const orderProduct = document.getElementById('order-filter-product')?.value;
+  if (orderId) query = query.ilike('shopify_order_id', `%${orderId}%`);
+  if (orderDate) query = query.eq('booking_date', orderDate);
+  if (orderProduct) query = query.eq('product_id', orderProduct);
+
+  const { data, error } = await query.limit(500);
+  if (error || !data?.length) {
+    document.getElementById('order-stat-unique').textContent = '0';
+    document.getElementById('order-stat-lines').textContent = '0';
+    document.getElementById('order-stat-area').textContent = '0';
+    document.getElementById('order-stat-phone').textContent = '0';
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:24px;color:#94A3B8;">${error ? 'Error loading order data' : 'No order-linked bookings found'}</td></tr>`;
+    return;
+  }
+
+  const uniqueOrders = new Set(data.map(r => r.shopify_order_id).filter(Boolean));
+  const withArea = data.filter(r => r.delivery_area).length;
+  const withPhone = data.filter(r => r.customer_phone).length;
+  document.getElementById('order-stat-unique').textContent = String(uniqueOrders.size);
+  document.getElementById('order-stat-lines').textContent = String(data.length);
+  document.getElementById('order-stat-area').textContent = String(withArea);
+  document.getElementById('order-stat-phone').textContent = String(withPhone);
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td><strong>${r.shopify_order_id || '—'}</strong></td>
+      <td>${productNameFor(r.product_id)}</td>
+      <td>${r.booking_date || '—'}</td>
+      <td>${slotBadge(r.slot)}</td>
+      <td>${r.customer_name || '—'}</td>
+      <td>${r.customer_phone || '—'}</td>
+      <td>${r.customer_email || '—'}</td>
+      <td>${r.delivery_area || '—'}</td>
+      <td>${r.delivery_price ? parseFloat(r.delivery_price).toFixed(3) : '—'}</td>
+      <td style="font-size:12px;line-height:1.6;white-space:normal;min-width:280px;">
+        ${orderPropertySnapshot(r)}
+      </td>
+      <td style="font-size:12px;color:#64748B;max-width:260px;white-space:normal;">${r.notes || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function orderPropertySnapshot(r) {
+  const dateLabel = r.booking_date
+    ? new Date(`${r.booking_date}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : '—';
+  const slotLabel = r.slot === 'morning'
+    ? 'Morning (6:30 AM – 8:30 AM)'
+    : r.slot === 'evening'
+      ? 'Evening (2:30 PM – 6:30 PM)'
+      : '—';
+  const areaLabel = r.delivery_area || '—';
+  const priceLabel = r.delivery_price ? parseFloat(r.delivery_price).toFixed(3) : '—';
+
+  return `
+    <div><strong>📅 Date:</strong> ${dateLabel}</div>
+    <div><strong>⏰ Slot:</strong> ${slotLabel}</div>
+    <div><strong>📍 Area:</strong> ${areaLabel}</div>
+    <div><strong>🚚 Delivery (KD):</strong> ${priceLabel}</div>
+  `;
+}
+
+function getStoredShopifyCredentials() {
+  const domain = localStorage.getItem(LS_SHOPIFY_DOMAIN) || 'snapstoress.myshopify.com';
+  const token = sessionStorage.getItem(SS_SHOPIFY_TOKEN) || localStorage.getItem(LS_SHOPIFY_TOKEN) || '';
+  const remember = !!localStorage.getItem(LS_SHOPIFY_TOKEN);
+  return { domain, token, remember };
+}
+
+function hasShopifyCredentials() {
+  const creds = getStoredShopifyCredentials();
+  return !!(creds.domain && creds.token);
+}
+
+async function callShopifySyncFunction(functionName, payload) {
+  const fnUrl = `${sessionStorage.getItem('sb_url')}/functions/v1/${functionName}`;
+  const apikey = sessionStorage.getItem('sb_key') || '';
+  const res = await fetch(fnUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': apikey,
+      'Authorization': `Bearer ${apikey}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.error || `${functionName} failed (${res.status})`);
+  return json;
+}
+
+async function runOrderCatchupSync(source) {
+  if (isOrderCatchupRunning || !hasShopifyCredentials()) return;
+  const creds = getStoredShopifyCredentials();
+  isOrderCatchupRunning = true;
+  try {
+    const json = await callShopifySyncFunction('shopify-orders-sync', {
+      domain: creds.domain.trim(),
+      token: creds.token.trim()
+    });
+
+    if ((json.inserted || 0) > 0) {
+      setSyncStatus('Auto Sync: Live (orders imported)', true);
+      markWebhookUpdate();
+      scheduleUiRefresh();
+    } else if (source === 'startup') {
+      setSyncStatus('Auto Sync: Connected (catch-up ready)', true);
+    }
+  } catch (e) {
+    console.error('runOrderCatchupSync error:', e);
+    setSyncStatus('Auto Sync: Connected (webhook only)', true);
+  } finally {
+    isOrderCatchupRunning = false;
+  }
+}
+
+function setupAutoShopifySync() {
+  if (orderCatchupTimer) {
+    clearInterval(orderCatchupTimer);
+    orderCatchupTimer = null;
+  }
+
+  if (!hasShopifyCredentials()) {
+    setSyncStatus('Shopify Not Connected', false);
+    return;
+  }
+
+  setSyncStatus('Auto Sync: Connected', true);
+  runOrderCatchupSync('startup');
+  orderCatchupTimer = setInterval(() => runOrderCatchupSync('interval'), ORDER_CATCHUP_MS);
+}
+
+function saveShopifyCredentials(domain, token, remember) {
+  localStorage.setItem(LS_SHOPIFY_DOMAIN, domain);
+  if (remember) {
+    localStorage.setItem(LS_SHOPIFY_TOKEN, token);
+    sessionStorage.removeItem(SS_SHOPIFY_TOKEN);
+  } else {
+    localStorage.removeItem(LS_SHOPIFY_TOKEN);
+    sessionStorage.setItem(SS_SHOPIFY_TOKEN, token);
+  }
+}
+
+async function saveOrderSyncSettings() {
+  const domain = document.getElementById('order-sync-domain').value.trim();
+  const token = document.getElementById('order-sync-token').value.trim();
+  const remember = document.getElementById('order-sync-remember-token').checked;
+  const errEl = document.getElementById('order-sync-error');
+  const btn = document.getElementById('order-sync-btn');
+
+  errEl.style.display = 'none';
+  if (!domain || !token) {
+    errEl.textContent = 'Please enter Shopify domain and API token.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = '⏳ Saving…';
+  btn.disabled = true;
+
+  try {
+    saveShopifyCredentials(domain, token, remember);
+    setupAutoShopifySync();
+    const json = await callShopifySyncFunction('shopify-orders-sync', {
+      domain: domain.trim(),
+      token: token.trim()
+    });
+    markWebhookUpdate();
+    closeOrderSyncModal();
+    showAlert('products-success', `✅ Shopify connection saved. Initial orders sync done (inserted: ${json.inserted || 0}, skipped: ${json.skipped || 0}).`);
+    loadBookings();
+    loadDashboard();
+    loadOrderData();
+  } catch (e) {
+    errEl.textContent = e.message || 'Unknown sync error.';
+    errEl.style.display = 'block';
+    console.error('saveOrderSyncSettings error:', e);
+  } finally {
+    btn.textContent = 'Save & Enable Auto Sync';
+    btn.disabled = false;
+  }
+}
+
+async function deleteBooking(id) {
+  if (!confirm('Delete this booking? This cannot be undone.')) return;
+  await sb.from('bookings').delete().eq('id', id);
+  loadBookings();
+  loadDashboard();
+}
+
+// ─── ADD BOOKING ──────────────────────────────────────────────────
+function populateNewBookingForm() {
+  populateProductFilters();
+}
+
+async function saveNewBooking() {
+  const product_id = document.getElementById('nb-product').value;
+  const booking_date = document.getElementById('nb-date').value;
+  const slot = document.getElementById('nb-slot').value;
+  const area = document.getElementById('nb-area').value;
+
+  hideAlerts(['booking-success', 'booking-error']);
+
+  if (!product_id || !booking_date || !slot) {
+    showAlert('booking-error', '⚠ Product, date, and slot are required.');
+    return;
+  }
+
+  const record = {
+    product_id,
+    booking_date,
+    slot,
+    delivery_area:    area || null,
+    delivery_price:   document.getElementById('nb-price').value   || null,
+    shopify_order_id: document.getElementById('nb-orderid').value || null,
+    customer_name:    document.getElementById('nb-name').value    || null,
+    customer_phone:   document.getElementById('nb-phone').value   || null,
+    customer_email:   document.getElementById('nb-email').value   || null,
+    notes:            document.getElementById('nb-notes').value   || null,
+  };
+
+  const { error } = await sb.from('bookings').insert(record);
+  if (error) {
+    showAlert('booking-error', `⚠ ${error.message}`);
+  } else {
+    showAlert('booking-success', '✅ Booking saved successfully!');
+    // Clear form
+    ['nb-product','nb-slot','nb-area'].forEach(id => document.getElementById(id).value = '');
+    ['nb-date','nb-price','nb-orderid','nb-name','nb-phone','nb-email','nb-notes'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  }
+}
+
+// ─── BLOCKS ───────────────────────────────────────────────────────
+async function loadBlocks() {
+  const tbody = document.getElementById('blocks-tbody');
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><span class="spinner"></span>Loading…</td></tr>`;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await sb.from('blocked_slots').select('*').gte('block_date', today).order('block_date');
+
+  // Populate product filter in block form
+  const blkProd = document.getElementById('blk-product');
+  if (blkProd) {
+    blkProd.innerHTML = `<option value="">All Products</option>` +
+      allProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#94A3B8;">No active blocks</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = (data || []).map(b => {
+    const prodName = allProducts.find(p => p.id === b.product_id)?.name || 'All Products';
+    return `<tr>
+      <td>${b.block_date}</td>
+      <td><span class="badge badge-blocked">${b.slot || 'All Day'}</span></td>
+      <td>${prodName}</td>
+      <td>${b.reason || '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteBlock('${b.id}')">Remove</button></td>
+    </tr>`;
+  }).join('');
+}
+
+async function saveBlock() {
+  hideAlerts(['block-success', 'block-error']);
+  const block_date  = document.getElementById('blk-date').value;
+  const slot        = document.getElementById('blk-slot').value;
+  const product_id  = document.getElementById('blk-product').value || null;
+  const reason      = document.getElementById('blk-reason').value || null;
+
+  if (!block_date) { showAlert('block-error', '⚠ Please select a date.'); return; }
+
+  const { error } = await sb.from('blocked_slots').insert({ block_date, slot, product_id, reason });
+  if (error) {
+    showAlert('block-error', `⚠ ${error.message}`);
+  } else {
+    showAlert('block-success', '✅ Block saved!');
+    document.getElementById('blk-date').value   = '';
+    document.getElementById('blk-reason').value = '';
+    loadBlocks();
+  }
+}
+
+async function deleteBlock(id) {
+  if (!confirm('Remove this block?')) return;
+  await sb.from('blocked_slots').delete().eq('id', id);
+  loadBlocks();
+}
+
+// ─── DELIVERY ZONES ───────────────────────────────────────────────
+async function loadZones() {
+  const tbody = document.getElementById('zones-tbody');
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="4"><span class="spinner"></span>Loading…</td></tr>`;
+
+  const { data } = await sb.from('delivery_zones').select('*').order('sort_order');
+  allZones = data || [];
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:#94A3B8;">No zones yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(z => `
+    <tr>
+      <td>${z.area_name}</td>
+      <td>${parseFloat(z.price).toFixed(3)} KD</td>
+      <td><span class="badge ${z.is_active ? 'badge-active' : 'badge-blocked'}">${z.is_active ? 'Active' : 'Hidden'}</span></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="editZone('${z.id}','${z.area_name}','${z.price}','${z.sort_order}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="toggleZone('${z.id}', ${z.is_active})">${z.is_active ? 'Hide' : 'Show'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteZone('${z.id}')">Delete</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function saveZone() {
+  hideAlerts(['zone-success', 'zone-error']);
+  const name  = document.getElementById('zone-name').value.trim();
+  const price = document.getElementById('zone-price').value;
+  const sort  = document.getElementById('zone-sort').value || 0;
+  const editId = document.getElementById('zone-edit-id').value;
+
+  if (!name || !price) { showAlert('zone-error', '⚠ Name and price are required.'); return; }
+
+  let error;
+  if (editId) {
+    ({ error } = await sb.from('delivery_zones').update({ area_name: name, price, sort_order: sort }).eq('id', editId));
+  } else {
+    ({ error } = await sb.from('delivery_zones').insert({ area_name: name, price, sort_order: sort }));
+  }
+
+  if (error) {
+    showAlert('zone-error', `⚠ ${error.message}`);
+  } else {
+    showAlert('zone-success', '✅ Saved!');
+    resetZoneForm();
+    loadZones();
+
+    // Refresh cache
+    const { data } = await sb.from('delivery_zones').select('*').order('sort_order');
+    allZones = data || [];
+  }
+}
+
+function editZone(id, name, price, sort) {
+  document.getElementById('zone-edit-id').value = id;
+  document.getElementById('zone-name').value    = name;
+  document.getElementById('zone-price').value   = parseFloat(price).toFixed(3);
+  document.getElementById('zone-sort').value    = sort;
+  document.getElementById('zone-form-title').textContent = '✏️ Edit Zone';
+}
+
+function resetZoneForm() {
+  document.getElementById('zone-edit-id').value = '';
+  document.getElementById('zone-name').value    = '';
+  document.getElementById('zone-price').value   = '';
+  document.getElementById('zone-sort').value    = '';
+  document.getElementById('zone-form-title').textContent = '➕ Add Zone';
+}
+
+async function toggleZone(id, current) {
+  await sb.from('delivery_zones').update({ is_active: !current }).eq('id', id);
+  loadZones();
+}
+
+async function deleteZone(id) {
+  if (!confirm('Delete this delivery zone?')) return;
+  await sb.from('delivery_zones').delete().eq('id', id);
+  loadZones();
+}
+
+// ─── PRODUCTS ─────────────────────────────────────────────────────
+async function loadProducts() {
+  const tbody = document.getElementById('products-tbody');
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="7"><span class="spinner"></span>Loading…</td></tr>`;
+
+  const { data } = await sb.from('products').select('*');
+  allProducts = data || [];
+
+  if (!data || !data.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#94A3B8;">
+      No products yet. Open <strong>Shopify Connection</strong> to enable webhook-based product sync.
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(p => {
+    const linkedName = data.find(x => x.id === p.linked_product_id)?.name || '—';
+    const img = p.shopify_image
+      ? `<img src="${p.shopify_image}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #E2E8F0;">`
+      : `<div style="width:40px;height:40px;background:#F1F5F9;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">📦</div>`;
+    return `<tr>
+      <td>${img}</td>
+      <td><strong>${p.name}</strong>${p.shopify_handle ? `<br><span style="font-size:11px;color:#94A3B8;">${p.shopify_handle}</span>` : ''}</td>
+      <td style="font-size:12px;color:#64748B;">${p.shopify_product_id || '—'}</td>
+      <td><code style="background:#F1F5F9;padding:2px 8px;border-radius:5px;font-size:11px;">${p.id}</code></td>
+      <td>${linkedName}</td>
+      <td><span class="badge ${p.is_active ? 'badge-active' : 'badge-blocked'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" onclick="renameProduct('${p.id}', '${p.name}')">Rename</button>
+        <button class="btn btn-outline btn-sm" onclick="setLinked('${p.id}')">Set Link</button>
+        <button class="btn btn-danger btn-sm"  onclick="toggleProduct('${p.id}', ${p.is_active})">${p.is_active ? 'Deactivate' : 'Activate'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function renameProduct(id, currentName) {
+  const newName = prompt(`Rename "${currentName}" to:`, currentName);
+  if (!newName || newName === currentName) return;
+  await sb.from('products').update({ name: newName }).eq('id', id);
+  loadProducts(); populateProductFilters();
+}
+
+async function toggleProduct(id, current) {
+  await sb.from('products').update({ is_active: !current }).eq('id', id);
+  loadProducts(); populateProductFilters();
+}
+
+async function setLinked(id) {
+  const other = prompt(`Enter the DB key of the product to link with (e.g. "naseem"), or leave blank to remove link:`);
+  if (other === null) return;
+  const linkedId = other.trim() || null;
+  await sb.from('products').update({ linked_product_id: linkedId }).eq('id', id);
+  loadProducts();
+}
+
+// ─── SHOPIFY SYNC ─────────────────────────────────────────────────
+function showSyncModal() {
+  const modal = document.getElementById('sync-modal');
+  const creds = getStoredShopifyCredentials();
+  document.getElementById('sync-domain').value = creds.domain;
+  document.getElementById('sync-token').value = creds.token;
+  document.getElementById('sync-remember-token').checked = creds.remember;
+  modal.style.display = 'flex';
+  document.getElementById('sync-error').style.display = 'none';
+}
+
+function closeSyncModal() {
+  document.getElementById('sync-modal').style.display = 'none';
+}
+
+function showOrderSyncModal() {
+  const creds = getStoredShopifyCredentials();
+  document.getElementById('order-sync-domain').value = creds.domain;
+  document.getElementById('order-sync-token').value = creds.token;
+  document.getElementById('order-sync-remember-token').checked = creds.remember;
+  document.getElementById('order-sync-error').style.display = 'none';
+  document.getElementById('order-sync-modal').style.display = 'flex';
+}
+
+function closeOrderSyncModal() {
+  document.getElementById('order-sync-modal').style.display = 'none';
+}
+
+async function saveProductSyncSettings() {
+  const domain = document.getElementById('sync-domain').value.trim();
+  const token  = document.getElementById('sync-token').value.trim();
+  const remember = document.getElementById('sync-remember-token').checked;
+  const errEl  = document.getElementById('sync-error');
+  const btn    = document.getElementById('sync-fetch-btn');
+
+  errEl.style.display = 'none';
+
+  if (!domain || !token) {
+    errEl.textContent = '⚠ Please enter both your store domain and API token.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.textContent = '⏳ Saving…'; btn.disabled = true;
+
+  try {
+    saveShopifyCredentials(domain, token, remember);
+    setupAutoShopifySync();
+    const json = await callShopifySyncFunction('shopify-products-sync', { domain, token });
+    closeSyncModal();
+    showAlert('products-success', `✅ Shopify connection saved. Initial products sync done (${json.synced || 0} products).`);
+    const { data } = await sb.from('products').select('*');
+    allProducts = data || [];
+    loadProducts();
+    populateProductFilters();
+
+  } catch (e) {
+    errEl.innerHTML = `<strong>⚠ ${e.message || 'Connection failed.'}</strong><br>
+      Check your domain/token and ensure Shopify webhooks are configured.`;
+    errEl.style.display = 'block';
+  } finally {
+    btn.textContent = 'Save & Enable Auto Sync';
+    btn.disabled = false;
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────
+function slotBadge(slot) {
+  return slot === 'morning'
+    ? `<span class="badge badge-morning">🌅 Morning</span>`
+    : `<span class="badge badge-evening">🌇 Evening</span>`;
+}
+
+function showAlert(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (msg) el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 4000);
+}
+
+function hideAlerts(ids) {
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('visible');
+  }
+}
+</script>
+
+</body>
+</html>

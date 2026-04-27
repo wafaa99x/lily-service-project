@@ -1,0 +1,872 @@
+<!--
+===========================================================
+  SHOPIFY BOOKING WIDGET v3 — WITH 24-HOUR RESTRICTION
+  Paste this inside your product page liquid template
+  INSIDE the <form action="/cart/add"> tag
+===========================================================
+  WHAT TO CHANGE PER PRODUCT:
+  Line ~30 → change PRODUCT_NAME to your product name
+              e.g. "Dafwa" / "Naseem" / "Product 3" etc.
+===========================================================
+-->
+
+<!-- Shopify reads these as order line item properties -->
+<input type="hidden" id="bk-date-val"  name="properties[📅 Date]">
+<input type="hidden" id="bk-slot-val"  name="properties[⏰ Slot]">
+<input type="hidden" id="bk-area-val"  name="properties[📍 Area]">
+<input type="hidden" id="bk-price-val" name="properties[🚚 Delivery (KD)]">
+
+<!-- Widget Mount Point -->
+<div id="bk-widget"></div>
+
+<script>
+// ============================================================
+//  ★  CHANGE THIS ONE LINE PER PRODUCT  ★
+// ============================================================
+var BK_PRODUCT_ID = "dafwa";
+// Options: "dafwa" | "naseem" | "product-3" | "product-4" | "product-5" | "product-6"
+// ============================================================
+
+var BK_SUPABASE_URL = "https://xjenagylukeeeutljpak.supabase.co";
+var BK_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqZW5hZ3lsdWtlZWV1dGxqcGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODE0NzMsImV4cCI6MjA5MjU1NzQ3M30.qMNWJqWcl9MAMN4-2WlrdpuEdWZXjWO8zh8ecOzxueQ";
+
+// Linked pairs — if one is booked, the other is blocked
+var BK_LINKED_PAIRS = [["dafwa", "naseem"]];
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+#bk-widget {
+  --gold:      #B8860B;
+  --gold-lt:   #D4A843;
+  --gold-bg:   #FBF6EB;
+  --gold-border:#E8DCC8;
+  --dark:      #1A1108;
+  --mid:       #5C4A20;
+  --muted:     #9A8060;
+  --surface:   #FDFAF5;
+  --white:     #FFFFFF;
+  --green:     #2D6A4F;
+  --red:       #9B2226;
+  --radius:    14px;
+  font-family: 'DM Sans', sans-serif;
+  max-width: 500px;
+  margin: 24px 0 16px;
+  color: var(--dark);
+}
+#bk-widget * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Step card ── */
+.bk-card {
+  border: 1px solid var(--gold-border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
+}
+.bk-card:focus-within { box-shadow: 0 0 0 3px rgba(184,134,11,.18); }
+.bk-card:hover { transform: translateY(-1px); }
+
+.bk-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px;
+  background: var(--gold-bg);
+  border-bottom: 1px solid var(--gold-border);
+}
+.bk-step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--gold); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.bk-step-num.done { background: var(--green); }
+.bk-card-head h4 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 15px; font-weight: 400;
+  color: var(--mid);
+}
+
+/* ── Calendar ── */
+.bk-cal-wrap { padding: 14px 12px 12px; }
+.bk-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.bk-cal-nav button {
+  background: none; border: 1px solid var(--gold-border);
+  border-radius: 8px; width: 32px; height: 32px;
+  cursor: pointer; color: var(--gold); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.bk-cal-nav button:hover:not(:disabled) { background: var(--gold-bg); border-color: var(--gold); }
+.bk-cal-nav button:disabled { opacity: .28; cursor: default; }
+.bk-cal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px; color: var(--mid);
+}
+.bk-grid {
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 3px;
+}
+.bk-dow {
+  text-align: center; font-size: 10px; font-weight: 600;
+  color: var(--muted); letter-spacing: .7px; text-transform: uppercase;
+  padding: 3px 0 6px;
+}
+.bk-day {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1.5px solid transparent;
+  transition: all .15s; color: var(--dark);
+  position: relative; user-select: none;
+}
+.bk-day:hover:not(.bk-off):not(.bk-sel) { background: var(--gold-bg); border-color: var(--gold-lt); }
+.bk-day.bk-sel  { background: var(--gold); color: #fff; border-color: var(--gold); font-weight: 700; }
+.bk-day.bk-off  { background: #F5F0E8; color: #CBBFAE; cursor: not-allowed; opacity: 0.6; }
+.bk-day.bk-today:not(.bk-sel) { border-color: var(--gold-lt); color: var(--gold); font-weight: 700; }
+.bk-day.bk-empty { pointer-events: none; background: none; }
+
+/* ── Slots ── */
+.bk-slots { display: flex; gap: 12px; padding: 14px; }
+.bk-slot {
+  flex: 1; padding: 14px 10px; border-radius: 10px;
+  border: 1.5px solid var(--gold-border); background: var(--gold-bg);
+  cursor: pointer; transition: all .18s; text-align: center;
+}
+.bk-slot:hover:not(.bk-slot-na) { border-color: var(--gold); background: #F5E9CA; }
+.bk-slot.bk-slot-sel { border-color: var(--gold); background: var(--gold); color: #fff; }
+.bk-slot.bk-slot-sel .bk-slot-lbl,
+.bk-slot.bk-slot-sel .bk-slot-time,
+.bk-slot.bk-slot-sel .bk-slot-st { color: rgba(255,255,255,.9); }
+.bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; }
+.bk-slot-ico  { font-size: 20px; margin-bottom: 4px; }
+.bk-slot-lbl  { display: block; font-size: 13px; font-weight: 600; color: var(--mid); }
+.bk-slot-time { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.bk-slot-st   { display: block; font-size: 10px; margin-top: 5px; font-weight: 600; }
+.bk-st-ok  { color: var(--green); }
+.bk-st-na  { color: var(--red); }
+.bk-st-chk { color: var(--muted); }
+
+.bk-slots-ph {
+  padding: 20px 14px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+
+/* ── Area ── */
+.bk-area-wrap { padding: 14px; }
+.bk-area-sel {
+  width: 100%; padding: 11px 14px; border-radius: 9px;
+  border: 1.5px solid var(--gold-border); background: var(--white);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--dark);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath fill='%23B8860B' d='M5 7 0 0h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center;
+  cursor: pointer; transition: border-color .15s;
+}
+.bk-area-sel:focus { outline: none; border-color: var(--gold); }
+.bk-fee {
+  margin-top: 8px; padding: 9px 13px;
+  background: #F0F8F4; border: 1px solid #B7DCC8;
+  border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--green);
+  display: none;
+}
+.bk-fee.show { display: block; }
+
+/* ── Summary ── */
+#bk-summary {
+  padding: 13px 16px;
+  background: linear-gradient(135deg, #1A1108 0%, #2C1E0A 100%);
+  border-radius: 12px; margin-bottom: 12px; display: none;
+  flex-wrap: wrap; gap: 12px;
+}
+#bk-summary.show { display: flex; }
+.bk-sum-item { flex: 1; min-width: 90px; }
+.bk-sum-lbl { font-size: 9.5px; letter-spacing: .9px; text-transform: uppercase; color: #C9A86C; }
+.bk-sum-val { font-size: 12.5px; color: #FFF8EC; font-weight: 600; margin-top: 2px; }
+
+/* ── Error ── */
+#bk-err {
+  padding: 11px 14px; border-radius: 9px; margin-bottom: 12px;
+  background: #FFF0EE; border: 1px solid #F5C6C2;
+  font-size: 13px; color: var(--red); display: none;
+}
+#bk-err.show { display: block; }
+
+/* ── Checking spinner ── */
+.bk-spin {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--gold-border); border-top-color: var(--gold);
+  border-radius: 50%; animation: bk-spin .8s linear infinite;
+  vertical-align: middle; margin-right: 5px;
+}
+@keyframes bk-spin { to { transform: rotate(360deg); } }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ─── Supabase client ─────────────────────────────────────────────
+  var sb = supabase.createClient(BK_SUPABASE_URL, BK_SUPABASE_KEY);
+
+  // ─── Constants ───────────────────────────────────────────────────
+  var SLOTS = {
+    morning: { label: 'Morning', time: '6:30 AM – 8:30 AM', icon: '🌅' },
+    evening: { label: 'Evening', time: '2:30 PM – 6:30 PM', icon: '🌇' }
+  };
+  var DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // ─── State ───────────────────────────────────────────────────────
+  var state = {
+    viewMonth: null,   // Date object — first of displayed month
+    selDate: null,     // selected Date
+    selSlot: null,     // 'morning' | 'evening'
+    selAreaId: null,
+    selAreaName: null,
+    selPrice: null,
+    avail: null,       // { morning: bool|null, evening: bool|null }
+    zones: [],
+    linkedProduct: null,
+    productIds: [BK_PRODUCT_ID],
+    linkedProductIds: [],
+    fullBlockedDates: {},
+    fullBookedDates: {},
+    checking: false,
+    liveRefreshTimer: null
+  };
+
+  // ─── TIME RESTRICTION HELPERS (24-hour rule) ─────────────────────
+  
+  // Get the minimum bookable date (24 hours from now, at midnight)
+  function getMinBookableDate() {
+    var now = new Date();
+    // Add 24 hours to current time
+    var minTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Return date at midnight (start of that day)
+    var minDate = new Date(minTime.getFullYear(), minTime.getMonth(), minTime.getDate());
+    return minDate;
+  }
+
+  // Get maximum bookable date (2 months from today)
+  function getMaxBookableDate() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setMonth(d.getMonth() + 2);
+    return d;
+  }
+
+  // Check if a date is bookable (not past, not today, not within 24 hours)
+  function isDateBookable(date) {
+    var minDate = getMinBookableDate();
+    var maxDate = getMaxBookableDate();
+    
+    // Reset time to midnight for comparison
+    var compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var compareMin = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+    var compareMax = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+    
+    // Date must be >= minDate and <= maxDate
+    return compareDate >= compareMin && compareDate <= compareMax;
+  }
+
+  // Format date for API (YYYY-MM-DD)
+  function fmt(d) {
+    if (!d) return '';
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  // Get today at midnight
+  function todayMidnight() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  // ─── Availability check ──────────────────────────────────────────
+  function linkedProductFor(name) {
+    for (var i = 0; i < BK_LINKED_PAIRS.length; i++) {
+      var pair = BK_LINKED_PAIRS[i];
+      if (pair[0] === name) return pair[1];
+      if (pair[1] === name) return pair[0];
+    }
+    return null;
+  }
+
+  function uniq(arr) {
+    var out = [];
+    (arr || []).forEach(function(v) {
+      if (!v) return;
+      if (out.indexOf(v) === -1) out.push(v);
+    });
+    return out;
+  }
+
+  function inferShopifyProductId() {
+    try {
+      var id = null;
+      if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
+        id = window.ShopifyAnalytics.meta.product.id;
+      }
+      if (!id && window.meta && window.meta.product && window.meta.product.id) {
+        id = window.meta.product.id;
+      }
+      return id ? String(id) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function inferProductHandle() {
+    try {
+      var path = window.location.pathname || '';
+      var m = path.match(/\/products\/([^/?#]+)/i);
+      return m && m[1] ? decodeURIComponent(m[1]) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function resolveProductScope() {
+    var linkedFallback = linkedProductFor(BK_PRODUCT_ID);
+    state.productIds = uniq([BK_PRODUCT_ID]);
+    state.linkedProductIds = uniq([linkedFallback]);
+
+    var shopifyId = inferShopifyProductId();
+    var handle = inferProductHandle();
+
+    var r = await sb.from('products')
+      .select('id, linked_product_id, shopify_product_id, shopify_handle')
+      .eq('is_active', true);
+
+    var rows = r.data || [];
+    if (!rows.length) return;
+
+    var matched = rows.filter(function(p) {
+      return p.id === BK_PRODUCT_ID
+        || (shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId)
+        || (p.shopify_product_id && String(p.shopify_product_id) === BK_PRODUCT_ID)
+        || (handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase());
+    });
+
+    if (!matched.length) return;
+
+    var productIds = [BK_PRODUCT_ID];
+    var linkedIds = [linkedFallback];
+
+    matched.forEach(function(p) {
+      productIds.push(p.id);
+      if (p.linked_product_id) linkedIds.push(p.linked_product_id);
+    });
+
+    state.productIds = uniq(productIds);
+    state.linkedProductIds = uniq(linkedIds);
+  }
+
+  async function loadFullBlockedDates() {
+    var min = fmt(getMinBookableDate());
+    var max = fmt(getMaxBookableDate());
+    var r = await sb.from('blocked_slots')
+      .select('block_date, slot, product_id')
+      .gte('block_date', min)
+      .lte('block_date', max);
+
+    var grouped = {};
+    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
+    (r.data || []).forEach(function(b) {
+      if (b.product_id && productIds.indexOf(b.product_id) === -1) return;
+      var day = b.block_date;
+      if (!grouped[day]) grouped[day] = { all: false, morning: false, evening: false };
+      if (!b.slot || b.slot === 'all') grouped[day].all = true;
+      if (b.slot === 'morning') grouped[day].morning = true;
+      if (b.slot === 'evening') grouped[day].evening = true;
+    });
+
+    var full = {};
+    Object.keys(grouped).forEach(function(d) {
+      var g = grouped[d];
+      if (g.all || (g.morning && g.evening)) full[d] = true;
+    });
+    state.fullBlockedDates = full;
+  }
+
+  async function loadFullBookedDates() {
+    var min = fmt(getMinBookableDate());
+    var max = fmt(getMaxBookableDate());
+    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
+    var linkedIds = state.linkedProductIds && state.linkedProductIds.length
+      ? state.linkedProductIds
+      : uniq([linkedProductFor(BK_PRODUCT_ID)]);
+    var scopeIds = uniq(productIds.concat(linkedIds));
+
+    if (!scopeIds.length) {
+      state.fullBookedDates = {};
+      return;
+    }
+
+    var r = await sb.from('bookings')
+      .select('booking_date, slot, product_id')
+      .in('product_id', scopeIds)
+      .gte('booking_date', min)
+      .lte('booking_date', max);
+
+    var grouped = {};
+    (r.data || []).forEach(function(b) {
+      if (!b || !b.booking_date || !b.slot) return;
+      var day = b.booking_date;
+      if (!grouped[day]) grouped[day] = { morning: false, evening: false };
+      if (b.slot === 'morning') grouped[day].morning = true;
+      if (b.slot === 'evening') grouped[day].evening = true;
+    });
+
+    var full = {};
+    Object.keys(grouped).forEach(function(d) {
+      var g = grouped[d];
+      if (g.morning && g.evening) full[d] = true;
+    });
+    state.fullBookedDates = full;
+  }
+
+  async function checkAvail(dateStr) {
+    var taken = {
+      morning: false,
+      evening: false
+    };
+
+    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
+    var linkedIds = state.linkedProductIds && state.linkedProductIds.length
+      ? state.linkedProductIds
+      : uniq([linkedProductFor(BK_PRODUCT_ID)]);
+
+    // 1. Bookings for THIS product
+    var r1 = await sb.from('bookings')
+      .select('slot')
+      .in('product_id', productIds)
+      .eq('booking_date', dateStr);
+    (r1.data || []).forEach(function(b) {
+      taken[b.slot] = true;
+    });
+
+    // 2. Bookings for linked product (if any)
+    if (linkedIds.length) {
+      var r2 = await sb.from('bookings')
+        .select('slot')
+        .in('product_id', linkedIds)
+        .eq('booking_date', dateStr);
+      (r2.data || []).forEach(function(b) {
+        taken[b.slot] = true;
+      });
+    }
+
+    // 3. Manual blocked slots (global + product-specific)
+    var r3 = await sb.from('blocked_slots')
+      .select('slot, product_id')
+      .eq('block_date', dateStr);
+    (r3.data || []).forEach(function(b) {
+      if (!b.product_id || productIds.indexOf(b.product_id) !== -1) {
+        if (!b.slot || b.slot === 'all') {
+          taken.morning = true;
+          taken.evening = true;
+        } else {
+          taken[b.slot] = true;
+        }
+      }
+    });
+
+    return {
+      morning: !taken.morning,
+      evening: !taken.evening
+    };
+  }
+
+  async function refreshLiveAvailability() {
+    await Promise.all([loadFullBlockedDates(), loadFullBookedDates()]);
+
+    if (state.selDate) {
+      state.avail = await checkAvail(fmt(state.selDate));
+      if (state.selSlot && state.avail[state.selSlot] === false) {
+        state.selSlot = null;
+      }
+    }
+    render();
+  }
+
+  function startLiveRefresh() {
+    if (state.liveRefreshTimer) {
+      clearInterval(state.liveRefreshTimer);
+    }
+    state.liveRefreshTimer = setInterval(function() {
+      refreshLiveAvailability().catch(function() {
+        // Keep interval alive even if one refresh fails.
+      });
+    }, 45000);
+  }
+
+  // ─── Load delivery zones ──────────────────────────────────────────
+  async function loadZones() {
+    var r = await sb.from('delivery_zones')
+      .select('*').eq('is_active', true).order('sort_order');
+    state.zones = r.data || [];
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────
+  function render() {
+    var root = document.getElementById('bk-widget');
+    if (!root) return;
+    root.innerHTML =
+      renderCalCard() +
+      renderSlotCard() +
+      renderAreaCard() +
+      renderSummary() +
+      '<div id="bk-err"></div>';
+
+    bindCal();
+    bindSlots();
+    bindArea();
+    syncHiddenInputs();
+    syncSummary();
+  }
+
+  // ── Calendar card ─────────────────────────────────────────────────
+  function renderCalCard() {
+    var vm = state.viewMonth;
+    var minDate = getMinBookableDate();
+    var maxDate = getMaxBookableDate();
+
+    var firstDay = new Date(vm.getFullYear(), vm.getMonth(), 1);
+    var lastDay = new Date(vm.getFullYear(), vm.getMonth() + 1, 0);
+
+    // Prev/next guards
+    var prevFirst = new Date(vm.getFullYear(), vm.getMonth() - 1, 1);
+    var nextFirst = new Date(vm.getFullYear(), vm.getMonth() + 1, 1);
+    var canPrev = prevFirst >= new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    var canNext = nextFirst <= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+    var done = !!state.selDate;
+    var head = '<div class="bk-card-head">' +
+      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '1') + '</div>' +
+      '<h4>Select Delivery Date</h4></div>';
+
+    // DOW row
+    var grid = '<div class="bk-grid">';
+    DOW.forEach(function(d) {
+      grid += '<div class="bk-dow">' + d + '</div>';
+    });
+
+    // Blank cells before month start
+    for (var b = 0; b < firstDay.getDay(); b++) {
+      grid += '<div class="bk-day bk-empty"></div>';
+    }
+
+    for (var d = 1; d <= lastDay.getDate(); d++) {
+      var date = new Date(vm.getFullYear(), vm.getMonth(), d);
+      var dStr = fmt(date);
+      
+      // Check if date is bookable (not within 24 hours, not past)
+      var bookable = isDateBookable(date);
+      var isBlockedByAdmin = !!state.fullBlockedDates[dStr];
+      var isFullyBooked = !!state.fullBookedDates[dStr];
+      var off = !bookable || isBlockedByAdmin || isFullyBooked;
+      
+      var isSel = state.selDate && fmt(state.selDate) === dStr;
+      var cls = 'bk-day' +
+        (off ? ' bk-off' : '') +
+        (isSel ? ' bk-sel' : '');
+      
+      grid += '<div class="' + cls + '" data-d="' + dStr + '">' + d + '</div>';
+    }
+    grid += '</div>';
+
+    return '<div class="bk-card">' + head +
+      '<div class="bk-cal-wrap">' +
+      '<div class="bk-cal-nav">' +
+      '<button id="bk-prev" ' + (canPrev ? '' : 'disabled') + '>&#8249;</button>' +
+      '<span class="bk-cal-title">' + MONTHS[vm.getMonth()] + ' ' + vm.getFullYear() + '</span>' +
+      '<button id="bk-next" ' + (canNext ? '' : 'disabled') + '>&#8250;</button>' +
+      '</div>' + grid + '</div></div>';
+  }
+
+  // ── Slot card ─────────────────────────────────────────────────────
+  function renderSlotCard() {
+    var done = !!state.selSlot;
+    var head = '<div class="bk-card-head">' +
+      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '2') + '</div>' +
+      '<h4>Select Time Slot</h4></div>';
+
+    var body;
+    if (!state.selDate) {
+      body = '<div class="bk-slots-ph">← Pick a date first</div>';
+    } else if (state.checking) {
+      body = '<div class="bk-slots-ph"><span class="bk-spin"></span>Checking availability…</div>';
+    } else {
+      body = '<div class="bk-slots">';
+      ['morning', 'evening'].forEach(function(key) {
+        var info = SLOTS[key];
+        var avail = state.avail ? state.avail[key] : null;
+        var isSel = state.selSlot === key;
+        var isNa = avail === false;
+        var stTxt, stCls;
+        if (avail === null) {
+          stTxt = 'Checking…';
+          stCls = 'bk-st-chk';
+        } else if (avail) {
+          stTxt = 'Available';
+          stCls = 'bk-st-ok';
+        } else {
+          stTxt = 'Unavailable';
+          stCls = 'bk-st-na';
+        }
+        body +=
+          '<div class="bk-slot' + (isSel ? ' bk-slot-sel' : '') + (isNa ? ' bk-slot-na' : '') +
+          '" data-slot="' + key + '"' + (isNa ? ' tabindex="-1"' : '') + '>' +
+          '<div class="bk-slot-ico">' + info.icon + '</div>' +
+          '<span class="bk-slot-lbl">' + info.label + '</span>' +
+          '<span class="bk-slot-time">' + info.time + '</span>' +
+          '<span class="bk-slot-st ' + stCls + '">' + stTxt + '</span>' +
+          '</div>';
+      });
+      body += '</div>';
+    }
+    return '<div class="bk-card">' + head + body + '</div>';
+  }
+
+  // ── Area card ─────────────────────────────────────────────────────
+  function renderAreaCard() {
+    var done = !!state.selAreaId;
+    var head = '<div class="bk-card-head">' +
+      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '3') + '</div>' +
+      '<h4>Delivery Area</h4></div>';
+
+    if (!state.zones.length) {
+      return '<div class="bk-card">' + head +
+        '<div class="bk-area-wrap"><div class="bk-slots-ph"><span class="bk-spin"></span>Loading areas…</div></div></div>';
+    }
+
+    var opts = '<option value="">— Choose your area —</option>';
+    state.zones.forEach(function(z) {
+      opts += '<option value="' + z.id + '" data-name="' + z.area_name + '" data-price="' + z.price + '"' +
+        (state.selAreaId === z.id ? ' selected' : '') + '>' +
+        z.area_name + ' — ' + parseFloat(z.price).toFixed(3) + ' KD</option>';
+    });
+
+    var fee = state.selPrice ?
+      '<div class="bk-fee show">🚚 Delivery fee: <strong>' + state.selPrice + ' KD</strong></div>' :
+      '<div class="bk-fee" id="bk-fee"></div>';
+
+    return '<div class="bk-card">' + head +
+      '<div class="bk-area-wrap">' +
+      '<select class="bk-area-sel" id="bk-area-sel">' + opts + '</select>' +
+      fee + '</div></div>';
+  }
+
+  // ── Summary ───────────────────────────────────────────────────────
+  function renderSummary() {
+    return '<div id="bk-summary">' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Date</div><div class="bk-sum-val" id="bk-sv-date">—</div></div>' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Slot</div><div class="bk-sum-val" id="bk-sv-slot">—</div></div>' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Area</div><div class="bk-sum-val" id="bk-sv-area">—</div></div>' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Delivery</div><div class="bk-sum-val" id="bk-sv-price">—</div></div>' +
+      '</div>';
+  }
+
+  // ─── Bind events ─────────────────────────────────────────────────
+  function bindCal() {
+    var prev = document.getElementById('bk-prev');
+    var next = document.getElementById('bk-next');
+    if (prev) prev.addEventListener('click', function() {
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() - 1, 1);
+      render();
+    });
+    if (next) next.addEventListener('click', function() {
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() + 1, 1);
+      render();
+    });
+
+    document.querySelectorAll('.bk-day:not(.bk-off):not(.bk-empty)').forEach(function(el) {
+      el.addEventListener('click', async function() {
+        var parts = el.dataset.d.split('-');
+        var selectedDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+        
+        // Double-check date is bookable (24-hour rule)
+        if (!isDateBookable(selectedDate)) {
+          showErr('This date is not available for booking. Please select a date at least 24 hours from now.');
+          return;
+        }
+        
+        state.selDate = selectedDate;
+        state.selSlot = null;
+        state.avail = null;
+        state.checking = true;
+        render();
+
+        state.avail = await checkAvail(el.dataset.d);
+        state.checking = false;
+        render();
+      });
+    });
+  }
+
+  function bindSlots() {
+    document.querySelectorAll('.bk-slot:not(.bk-slot-na)').forEach(function(el) {
+      el.addEventListener('click', function() {
+        state.selSlot = el.dataset.slot;
+        clearErr();
+        render();
+      });
+    });
+  }
+
+  function bindArea() {
+    var sel = document.getElementById('bk-area-sel');
+    if (!sel) return;
+    sel.addEventListener('change', function() {
+      var opt = sel.selectedOptions[0];
+      if (opt && opt.value) {
+        state.selAreaId = opt.value;
+        state.selAreaName = opt.dataset.name;
+        state.selPrice = parseFloat(opt.dataset.price).toFixed(3);
+      } else {
+        state.selAreaId = state.selAreaName = state.selPrice = null;
+      }
+      clearErr();
+      render();
+    });
+  }
+
+  // ─── Sync hidden inputs & summary ─────────────────────────────────
+  function syncHiddenInputs() {
+    var dv = document.getElementById('bk-date-val');
+    var sv = document.getElementById('bk-slot-val');
+    var av = document.getElementById('bk-area-val');
+    var pv = document.getElementById('bk-price-val');
+    
+    if (dv) dv.value = state.selDate ?
+      state.selDate.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }) : '';
+    if (sv) sv.value = state.selSlot ? SLOTS[state.selSlot].label + ' (' + SLOTS[state.selSlot].time + ')' : '';
+    if (av) av.value = state.selAreaName || '';
+    if (pv) pv.value = state.selPrice || '';
+  }
+
+  function syncSummary() {
+    var el = document.getElementById('bk-summary');
+    if (!el) return;
+    var any = state.selDate || state.selSlot || state.selAreaId;
+    if (any) {
+      el.classList.add('show');
+      var sd = document.getElementById('bk-sv-date');
+      var ss = document.getElementById('bk-sv-slot');
+      var sa = document.getElementById('bk-sv-area');
+      var sp = document.getElementById('bk-sv-price');
+      if (sd) sd.textContent = state.selDate ?
+        state.selDate.toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        }) : '—';
+      if (ss) ss.textContent = state.selSlot ? SLOTS[state.selSlot].label : '—';
+      if (sa) sa.textContent = state.selAreaName || '—';
+      if (sp) sp.textContent = state.selPrice ? state.selPrice + ' KD' : '—';
+    } else {
+      el.classList.remove('show');
+    }
+  }
+
+  // ─── Error helpers ────────────────────────────────────────────────
+  function showErr(msg) {
+    var el = document.getElementById('bk-err');
+    if (el) {
+      el.textContent = '⚠ ' + msg;
+      el.classList.add('show');
+    }
+  }
+
+  function clearErr() {
+    var el = document.getElementById('bk-err');
+    if (el) el.classList.remove('show');
+  }
+
+  // ─── Intercept Add-to-Cart ────────────────────────────────────────
+  function hookCart() {
+    var form = document.querySelector('form[action*="/cart/add"]');
+    if (!form) return;
+    var submitting = false;
+    form.addEventListener('submit', async function(e) {
+      if (submitting) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!state.selDate) {
+        showErr('Please select a delivery date.');
+        return;
+      }
+      if (!state.selSlot) {
+        showErr('Please select a time slot.');
+        return;
+      }
+      if (!state.selAreaId) {
+        showErr('Please select your delivery area.');
+        return;
+      }
+
+      if (!isDateBookable(state.selDate)) {
+        showErr('This date is no longer available for booking. Please choose another date.');
+        return;
+      }
+
+      clearErr();
+      syncHiddenInputs(); // ensure latest values before submit
+
+      state.checking = true;
+      render();
+
+      state.avail = await checkAvail(fmt(state.selDate));
+      state.checking = false;
+      render();
+
+      if (!state.avail || state.avail[state.selSlot] === false) {
+        showErr('That slot is already booked for this product on the selected date. Please choose another time.');
+        return;
+      }
+
+      submitting = true;
+      form.submit();
+    }, true);
+  }
+
+  // ─── Init ────────────────────────────────────────────────────────
+  async function init() {
+    var minDate = getMinBookableDate();
+    // Set view month to the minimum bookable date's month
+    state.viewMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    render();
+    await resolveProductScope();
+    await Promise.all([loadZones(), loadFullBlockedDates(), loadFullBookedDates()]);
+    render();
+    hookCart();
+    startLiveRefresh();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
