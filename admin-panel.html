@@ -740,7 +740,7 @@ tbody tr:hover { background: var(--surface2); }
           <div style="padding:22px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
             <div>
               <div style="font-size:17px;font-weight:700;">🔗 Shopify Product Connection</div>
-              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and run the Shopify product sync</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Fetch the Shopify token from your server and run the product sync</div>
             </div>
             <button onclick="closeSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
           </div>
@@ -748,7 +748,7 @@ tbody tr:hover { background: var(--surface2); }
           <div style="padding:22px 24px;">
             <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#92400E;line-height:1.6;">
               <strong>How this works:</strong><br>
-              Enter your Shopify domain and Admin API token once. The panel saves credentials and runs pull-based updates from Shopify.
+              Enter your Shopify domain once. The panel will fetch the token from a Supabase Edge Function and run pull-based updates from Shopify.
             </div>
 
             <div class="form-row cols-2" style="margin-bottom:14px;">
@@ -757,10 +757,11 @@ tbody tr:hover { background: var(--surface2); }
                 <input type="text" class="form-input" id="sync-domain" placeholder="yourstore.myshopify.com" value="snapstoress.myshopify.com">
               </div>
               <div class="form-group">
-                <label class="form-label">Admin API Token *
-                  <span style="font-weight:400;color:#94A3B8;font-size:10px;margin-left:4px;">(how to get it ↓)</span>
-                </label>
-                <input type="password" class="form-input" id="sync-token" placeholder="shpat_xxxxxxxxxxxx">
+                <label class="form-label">Admin API Token</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="password" class="form-input" id="sync-token" placeholder="Fetched from server" readonly style="flex:1;background:#F8FAFC;">
+                  <button class="btn btn-outline btn-sm" type="button" onclick="fetchShopifyToken('sync')" id="sync-get-btn" style="white-space:nowrap;min-width:68px;">Get</button>
+                </div>
               </div>
             </div>
 
@@ -768,18 +769,9 @@ tbody tr:hover { background: var(--surface2); }
               <input type="checkbox" id="sync-remember-token" style="width:14px;height:14px;"> Remember token on this browser
             </label>
 
-            <details style="margin-bottom:18px;font-size:12px;color:#475569;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
-              <summary style="cursor:pointer;font-weight:600;color:#334155;">How to get your Shopify Admin API Token</summary>
-              <ol style="margin-top:10px;padding-left:18px;line-height:2;">
-                <li>Shopify Admin → <strong>Settings</strong> → <strong>Apps and sales channels</strong></li>
-                <li>Click <strong>Develop apps</strong> → <strong>Create an app</strong></li>
-                <li>Name it anything (e.g. "Booking Sync")</li>
-                <li>Click <strong>Configure Admin API scopes</strong></li>
-                <li>Enable: <strong>read_products</strong> → Save</li>
-                <li>Click <strong>Install app</strong> → <strong>Install</strong></li>
-                <li>Copy the <strong>Admin API access token</strong> (starts with <code>shpat_</code>)</li>
-              </ol>
-            </details>
+            <div id="sync-token-status" style="margin-bottom:18px;font-size:12px;color:#64748B;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 14px;line-height:1.6;">
+              Click <strong>Get</strong> to load the token from your backend.
+            </div>
 
             <button class="btn btn-accent" onclick="saveProductSyncSettings()" id="sync-fetch-btn" style="width:100%;">
               Save & Sync
@@ -807,12 +799,18 @@ tbody tr:hover { background: var(--surface2); }
               <input type="text" class="form-input" id="order-sync-domain" placeholder="yourstore.myshopify.com">
             </div>
             <div class="form-group" style="margin-bottom:12px;">
-              <label class="form-label">Admin API Token *</label>
-              <input type="password" class="form-input" id="order-sync-token" placeholder="shpat_xxxxxxxxxxxx">
+              <label class="form-label">Admin API Token</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="password" class="form-input" id="order-sync-token" placeholder="Fetched from server" readonly style="flex:1;background:#F8FAFC;">
+                <button class="btn btn-outline btn-sm" type="button" onclick="fetchShopifyToken('order')" id="order-get-btn" style="white-space:nowrap;min-width:68px;">Get</button>
+              </div>
             </div>
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#475569;margin-bottom:12px;">
               <input type="checkbox" id="order-sync-remember-token" style="width:14px;height:14px;"> Remember token on this browser
             </label>
+            <div id="order-sync-token-status" style="margin-bottom:12px;font-size:12px;color:#64748B;background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 12px;line-height:1.6;">
+              Click <strong>Get</strong> to load the token from your backend.
+            </div>
             <div id="order-sync-error" style="display:none;margin-bottom:12px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12px;color:#DC2626;"></div>
             <button class="btn btn-accent" id="order-sync-btn" onclick="saveOrderSyncSettings()" style="width:100%;">Save & Sync Orders</button>
           </div>
@@ -1586,6 +1584,7 @@ function showSyncModal() {
   document.getElementById('sync-domain').value = creds.domain;
   document.getElementById('sync-token').value = creds.token;
   document.getElementById('sync-remember-token').checked = creds.remember;
+  setTokenStatus('sync', creds.token ? 'Token already loaded on this browser.' : 'Click Get to load the token from your backend.');
   modal.style.display = 'flex';
   document.getElementById('sync-error').style.display = 'none';
 }
@@ -1599,8 +1598,57 @@ function showOrderSyncModal() {
   document.getElementById('order-sync-domain').value = creds.domain;
   document.getElementById('order-sync-token').value = creds.token;
   document.getElementById('order-sync-remember-token').checked = creds.remember;
+  setTokenStatus('order', creds.token ? 'Token already loaded on this browser.' : 'Click Get to load the token from your backend.');
   document.getElementById('order-sync-error').style.display = 'none';
   document.getElementById('order-sync-modal').style.display = 'flex';
+}
+
+function setTokenStatus(which, message) {
+  const el = document.getElementById(which === 'order' ? 'order-sync-token-status' : 'sync-token-status');
+  if (el) el.textContent = message;
+}
+
+async function fetchShopifyToken(which) {
+  const btn = document.getElementById(which === 'order' ? 'order-get-btn' : 'sync-get-btn');
+  const tokenInput = document.getElementById(which === 'order' ? 'order-sync-token' : 'sync-token');
+  const statusEl = document.getElementById(which === 'order' ? 'order-sync-token-status' : 'sync-token-status');
+  const errEl = document.getElementById(which === 'order' ? 'order-sync-error' : 'sync-error');
+  const sbUrl = sessionStorage.getItem('sb_url') || '';
+  const sbKey = sessionStorage.getItem('sb_key') || '';
+
+  if (errEl) errEl.style.display = 'none';
+  if (statusEl) statusEl.textContent = 'Fetching token from Supabase Edge Function…';
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+  try {
+    if (!sbUrl || !sbKey) throw new Error('Sign in with your Supabase URL and Service Role Key first.');
+
+    const res = await fetch(`${sbUrl}/functions/v1/shopify-token`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'apikey': sbKey,
+        'Authorization': `Bearer ${sbKey}`
+      }
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `Token endpoint failed (${res.status})`);
+
+    const token = String(data?.token || '').trim();
+    if (!token) throw new Error('Token endpoint returned an empty token');
+
+    if (tokenInput) tokenInput.value = token;
+    if (statusEl) statusEl.textContent = 'Token loaded from Supabase Edge Function.';
+  } catch (e) {
+    if (statusEl) statusEl.textContent = 'Could not load the token.';
+    if (errEl) {
+      errEl.textContent = `⚠ ${e.message || 'Failed to fetch token.'}`;
+      errEl.style.display = 'block';
+    }
+    console.error('fetchShopifyToken error:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Get'; }
+  }
 }
 
 function closeOrderSyncModal() {
