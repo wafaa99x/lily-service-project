@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking System Shopify</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 720px;
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    h1 { margin: 0 0 6px; font-size: 28px; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    .links { display: grid; gap: 10px; }
+    a {
+      display: block;
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: #0b1220;
+    }
+    a:hover { border-color: var(--accent); }
+    .hint { margin-top: 14px; font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Booking System Shopify</h1>
+    <p>Deployed project entry page.</p>
+
+    <div class="links">
+      <a href="./admin-panel.html">Open Admin Panel</a>
+      <!-- <a href="./SETUP-GUIDE.md">Open Setup Guide</a>
+      <a href="./SHOPIFY-WEBHOOK-SETUP.md">Open Webhook Setup Guide</a> -->
+    </div>
+
+    <div class="hint">
+      The storefront widget is intended to be embedded in Shopify product templates.
+    </div>
+  </main>
+</body>
+</html>
