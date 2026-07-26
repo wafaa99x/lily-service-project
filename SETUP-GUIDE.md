@@ -223,7 +223,7 @@ This removes manual lag and prevents slots from staying open after payment.
         - `SUPABASE_URL` = your project URL
         - `SUPABASE_SERVICE_ROLE_KEY` = your service role key
         - `SHOPIFY_WEBHOOK_SECRET` = webhook signing secret from Shopify
-        - `SHOPIFY_PRODUCTS_WEBHOOK_SECRET` = signing secret for product webhooks (or reuse order secret)
+        - `SHOPIFY_WEBHOOK_SECRET` = signing secret for product webhooks (or reuse order secret)
 3. If you deploy the admin app on Render, set these Web Service env vars:
         - `SHOPIFY_STORE_DOMAIN` = your store domain, e.g. `snapstoress.myshopify.com`
         - `SHOPIFY_ADMIN_API_TOKEN` = Shopify Admin API token, stored only on the server

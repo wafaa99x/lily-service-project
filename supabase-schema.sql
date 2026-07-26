@@ -32,6 +32,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_products_shopify_product_id
 
 -- Self-reference foreign key for linked products
 ALTER TABLE products
+  DROP CONSTRAINT IF EXISTS fk_linked_product;
+
+ALTER TABLE products
   ADD CONSTRAINT fk_linked_product
   FOREIGN KEY (linked_product_id) REFERENCES products(id);
 
@@ -73,6 +76,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 -- - no bookings inside the 24-hour prep window
 -- - no double booking for the same product/date/slot
 -- - linked products (Dafwa/Naseem) block each other for the same date/slot
+-- - no more than 3 bookings per slot per day across all products
 CREATE OR REPLACE FUNCTION enforce_booking_integrity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -80,6 +84,7 @@ AS $$
 DECLARE
   slot_start timestamptz;
   linked_id text;
+  booking_count integer;
 BEGIN
   IF NEW.booking_date < CURRENT_DATE THEN
     RAISE EXCEPTION 'Past-date bookings are not allowed';
@@ -116,6 +121,16 @@ BEGIN
       AND (TG_OP = 'INSERT' OR id <> NEW.id)
   ) THEN
     RAISE EXCEPTION 'Linked product is already booked for that date and slot';
+  END IF;
+
+  SELECT COUNT(*) INTO booking_count
+  FROM bookings
+  WHERE booking_date = NEW.booking_date
+    AND slot = NEW.slot
+    AND (TG_OP = 'INSERT' OR id <> NEW.id);
+
+  IF booking_count >= 3 THEN
+    RAISE EXCEPTION 'This slot has reached the daily capacity of 3 bookings';
   END IF;
 
   RETURN NEW;
@@ -338,15 +353,19 @@ ALTER TABLE blocked_slots  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delivery_zones ENABLE ROW LEVEL SECURITY;
 
 -- Public read access (for booking widget availability checks)
+DROP POLICY IF EXISTS "Public read products" ON products;
 CREATE POLICY "Public read products"
   ON products FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "Public read bookings" ON bookings;
 CREATE POLICY "Public read bookings"
   ON bookings FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "Public read blocked_slots" ON blocked_slots;
 CREATE POLICY "Public read blocked_slots"
   ON blocked_slots FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "Public read active delivery zones" ON delivery_zones;
 CREATE POLICY "Public read active delivery zones"
   ON delivery_zones FOR SELECT USING (is_active = TRUE);
 

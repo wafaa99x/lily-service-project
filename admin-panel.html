@@ -369,7 +369,7 @@ tbody tr:hover { background: var(--surface2); }
           <div class="stat-card">
             <div class="stat-label">Today's Bookings</div>
             <div class="stat-value" id="stat-today">—</div>
-            <div class="stat-sub">out of 12 possible slots</div>
+            <div class="stat-sub">out of 6 possible (max 3 morning + 3 evening)</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">This Week</div>
@@ -380,6 +380,11 @@ tbody tr:hover { background: var(--surface2); }
             <div class="stat-label">Active Blocks</div>
             <div class="stat-value" id="stat-blocks">—</div>
             <div class="stat-sub">upcoming blocked slots</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Today's Capacity</div>
+            <div class="stat-value" id="stat-capacity">—</div>
+            <div class="stat-sub" id="stat-capacity-sub">morning / evening (max 3 each)</div>
           </div>
           <!-- <div class="stat-card">
             <div class="stat-label">Delivery Zones</div>
@@ -399,7 +404,7 @@ tbody tr:hover { background: var(--surface2); }
                 </tr>
               </thead>
               <tbody id="upcoming-tbody">
-                <tr class="loading-row"><td colspan="7"><span class="spinner"></span>Loading…</td></tr>
+                <tr class="loading-row"><td colspan="5"><span class="spinner"></span>Loading…</td></tr>
               </tbody>
             </table>
           </div>
@@ -930,7 +935,7 @@ async function initApp() {
   const { data: zones } = await sb.from('delivery_zones').select('*').order('sort_order');
   allZones = zones || [];
 
-  loadDashboard();
+  try { await loadDashboard(); } catch (e) { console.error('loadDashboard:', e); }
   populateProductFilters();
   renderLastWebhookUpdate();
   setupAutoShopifySync();
@@ -1082,23 +1087,48 @@ async function loadDashboard() {
   const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
   const weekStr = weekEnd.toISOString().split('T')[0];
 
-  const [todayRes, weekRes, blocksRes, zonesRes, upcomingRes] = await Promise.all([
+  const [todayRes, weekRes, blocksRes, zonesRes, upcomingRes, todaySlotsRes] = await Promise.all([
     sb.from('bookings').select('id', { count: 'exact' }).eq('booking_date', today),
     sb.from('bookings').select('id', { count: 'exact' }).gte('booking_date', today).lte('booking_date', weekStr),
     sb.from('blocked_slots').select('id', { count: 'exact' }).gte('block_date', today),
     sb.from('delivery_zones').select('id', { count: 'exact' }).eq('is_active', true),
-    sb.from('bookings').select('*').gte('booking_date', today).lte('booking_date', weekStr).order('booking_date').order('slot')
+    sb.from('bookings').select('*').gte('booking_date', today).lte('booking_date', weekStr).order('booking_date').order('slot'),
+    sb.from('bookings').select('slot').eq('booking_date', today)
   ]);
 
-  document.getElementById('stat-today').textContent  = todayRes.count  ?? '—';
-  document.getElementById('stat-week').textContent   = weekRes.count   ?? '—';
-  document.getElementById('stat-blocks').textContent = blocksRes.count ?? '—';
-  document.getElementById('stat-zones').textContent  = zonesRes.count  ?? '—';
+  const slotCounts = { morning: 0, evening: 0 };
+  (todaySlotsRes.data || []).forEach(b => {
+    if (b.slot === 'morning') slotCounts.morning += 1;
+    if (b.slot === 'evening') slotCounts.evening += 1;
+  });
+
+  const setStat = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val ?? '—';
+  };
+  setStat('stat-today',  todayRes.count);
+  setStat('stat-week',   weekRes.count);
+  setStat('stat-blocks', blocksRes.count);
+  setStat('stat-zones',  zonesRes.count);
+
+  const capEl = document.getElementById('stat-capacity');
+  const capSub = document.getElementById('stat-capacity-sub');
+  if (capEl) {
+    capEl.textContent = `${slotCounts.morning}/3 · ${slotCounts.evening}/3`;
+    if (capSub) {
+      const fullMorning = slotCounts.morning >= 3;
+      const fullEvening = slotCounts.evening >= 3;
+      if (fullMorning && fullEvening) capSub.textContent = '🔴 Both slots full today';
+      else if (fullMorning) capSub.textContent = '🟠 Morning full · evening open';
+      else if (fullEvening) capSub.textContent = '🟠 Evening full · morning open';
+      else capSub.textContent = '🟢 Slots open today';
+    }
+  }
 
   const tbody = document.getElementById('upcoming-tbody');
   const rows = upcomingRes.data || [];
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:#94A3B8;">No upcoming bookings</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#94A3B8;">No upcoming bookings</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r => `
@@ -1631,16 +1661,36 @@ async function saveProductSyncSettings() {
     saveShopifyDomain(domain);
     setupAutoShopifySync();
     const json = await callServerSync('/api/shopify/sync-products', { domain });
+
+    // The Edge Function may report per-product warnings (e.g. duplicates);
+    // surface them so one bad product doesn't silently fail the whole batch.
+    const skipped = json?.skipped || json?.failed || 0;
+    const synced = json?.synced || 0;
+    const issues = Array.isArray(json?.issues) ? json.issues : [];
+
     closeSyncModal();
-    showAlert('products-success', `✅ Shopify connection saved. Initial products sync done (${json.synced || 0} products).`);
+    if (issues.length) {
+      showAlert('products-error', `⚠ Synced ${synced} products; ${issues.length} skipped. First issue: ${issues[0]}`);
+    } else if (skipped > 0) {
+      showAlert('products-error', `⚠ Synced ${synced} products; ${skipped} skipped (likely duplicates — see server logs).`);
+    } else {
+      showAlert('products-success', `✅ Shopify connection saved. Initial products sync done (${synced} products).`);
+    }
     const { data } = await sb.from('products').select('*');
     allProducts = data || [];
     loadProducts();
     populateProductFilters();
 
   } catch (e) {
-    errEl.innerHTML = `<strong>⚠ ${e.message || 'Connection failed.'}</strong><br>
-      Check your domain and ensure Shopify webhooks are configured.`;
+    const msg = (e.message || '').toLowerCase();
+    if (msg.includes('duplicate') || msg.includes('unique')) {
+      errEl.innerHTML = `<strong>⚠ A product is being inserted twice (same Shopify ID).</strong><br>
+        This means the sync function isn't upserting on <code>shopify_product_id</code>, or it's saving variants as separate products.<br>
+        Fix the Edge Function <code>shopify-products-sync</code> to <code>.upsert(rows, { onConflict: 'shopify_product_id' })</code>.`;
+    } else {
+      errEl.innerHTML = `<strong>⚠ ${e.message || 'Connection failed.'}</strong><br>
+        Check your domain and ensure Shopify webhooks are configured.`;
+    }
     errEl.style.display = 'block';
   } finally {
     btn.textContent = 'Save Domain & Enable Auto Sync';

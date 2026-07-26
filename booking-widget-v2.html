@@ -254,6 +254,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   var sb = supabase.createClient(BK_SUPABASE_URL, BK_SUPABASE_KEY);
 
   // ─── Constants ───────────────────────────────────────────────────
+  var MAX_BOOKINGS_PER_SLOT = 3;
   var SLOTS = {
     morning: { label: 'Morning', time: '6:30 AM – 8:30 AM', icon: '🌅' },
     evening: { label: 'Evening', time: '2:30 PM – 6:30 PM', icon: '🌇' }
@@ -455,20 +456,8 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   async function loadFullBookedDates() {
     var min = fmt(getMinBookableDate());
     var max = fmt(getMaxBookableDate());
-    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
-    var linkedIds = state.linkedProductIds && state.linkedProductIds.length
-      ? state.linkedProductIds
-      : uniq([linkedProductFor(BK_PRODUCT_ID)]);
-    var scopeIds = uniq(productIds.concat(linkedIds));
-
-    if (!scopeIds.length) {
-      state.fullBookedDates = {};
-      return;
-    }
-
     var r = await sb.from('bookings')
       .select('booking_date, slot, product_id')
-      .in('product_id', scopeIds)
       .gte('booking_date', min)
       .lte('booking_date', max);
 
@@ -476,20 +465,36 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     (r.data || []).forEach(function(b) {
       if (!b || !b.booking_date || !b.slot) return;
       var day = b.booking_date;
-      if (!grouped[day]) grouped[day] = { morning: false, evening: false };
-      if (b.slot === 'morning') grouped[day].morning = true;
-      if (b.slot === 'evening') grouped[day].evening = true;
+      if (!grouped[day]) grouped[day] = { morning: 0, evening: 0 };
+      if (b.slot === 'morning') grouped[day].morning += 1;
+      if (b.slot === 'evening') grouped[day].evening += 1;
     });
 
     var full = {};
     Object.keys(grouped).forEach(function(d) {
       var g = grouped[d];
-      if (g.morning && g.evening) full[d] = true;
+      if (g.morning >= MAX_BOOKINGS_PER_SLOT && g.evening >= MAX_BOOKINGS_PER_SLOT) full[d] = true;
     });
     state.fullBookedDates = full;
   }
 
+  async function loadSlotCounts(dateStr) {
+    var counts = { morning: 0, evening: 0 };
+    var r = await sb.from('bookings')
+      .select('slot')
+      .eq('booking_date', dateStr);
+
+    (r.data || []).forEach(function(b) {
+      if (!b || !b.slot) return;
+      if (b.slot === 'morning') counts.morning += 1;
+      if (b.slot === 'evening') counts.evening += 1;
+    });
+
+    return counts;
+  }
+
   async function checkAvail(dateStr) {
+    var counts = await loadSlotCounts(dateStr);
     var taken = {
       morning: false,
       evening: false
@@ -536,8 +541,9 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     });
 
     return {
-      morning: !taken.morning,
-      evening: !taken.evening
+      morning: !taken.morning && counts.morning < MAX_BOOKINGS_PER_SLOT,
+      evening: !taken.evening && counts.evening < MAX_BOOKINGS_PER_SLOT,
+      counts: counts
     };
   }
 
@@ -683,6 +689,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       ['morning', 'evening'].forEach(function(key) {
         var info = SLOTS[key];
         var avail = state.avail ? state.avail[key] : null;
+        var bookedCount = state.avail && state.avail.counts ? state.avail.counts[key] : null;
         var tooSoon = state.selDate ? !isSlotBookable(state.selDate, key) : false;
         var isSel = state.selSlot === key;
         var isNa = avail === false || tooSoon;
@@ -691,8 +698,11 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
           stTxt = 'Checking…';
           stCls = 'bk-st-chk';
         } else if (avail && !tooSoon) {
-          stTxt = 'Available';
+          stTxt = bookedCount !== null ? bookedCount + '/' + MAX_BOOKINGS_PER_SLOT + ' booked' : 'Available';
           stCls = 'bk-st-ok';
+        } else if (bookedCount !== null && bookedCount >= MAX_BOOKINGS_PER_SLOT) {
+          stTxt = 'Fully booked';
+          stCls = 'bk-st-na';
         } else {
           stTxt = 'Unavailable';
           stCls = 'bk-st-na';
@@ -995,7 +1005,11 @@ function syncAddToCartState() {
       render();
 
       if (!state.avail || state.avail[state.selSlot] === false) {
-        showErr('That slot is already booked for this product on the selected date. Please choose another time.');
+        if (state.avail && state.avail.counts && state.avail.counts[state.selSlot] >= MAX_BOOKINGS_PER_SLOT) {
+          showErr('That slot has reached the daily capacity of 3 bookings. Please choose another time.');
+        } else {
+          showErr('That slot is already booked for this product on the selected date. Please choose another time.');
+        }
         return;
       }
 

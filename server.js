@@ -4,7 +4,11 @@ import express from 'express';
 
 const app = express();
 
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); },
+  })
+);
 app.use(express.static('.'));
 
 const TOKEN_TTL_SECONDS = 2 * 60 * 60;
@@ -365,6 +369,51 @@ app.post('/api/shopify/sync-products', requireAuth, async (req, res) => {
 	} catch (error) {
 		res.status(500).json({ error: error.message || 'Product sync failed' });
 	}
+});
+
+const PRODUCT_WEBHOOK_TARGET =
+  process.env.SHOPIFY_PRODUCTS_WEBHOOK_URL ||
+  'https://adcjzrstjrdxzfobcfbl.supabase.co/functions/v1/shopify-products-webhook';
+const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || '';
+
+function verifyShopifyWebhookHmac(rawBody, hmacHeader) {
+  if (!SHOPIFY_WEBHOOK_SECRET || !hmacHeader) return false;
+  const computed = crypto
+    .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
+    .update(rawBody, 'utf8')
+    .digest('base64');
+  const a = Buffer.from(computed);
+  const b = Buffer.from(hmacHeader);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+['create', 'update', 'delete'].forEach((topic) => {
+  app.post(`/api/shopify/webhook/products-${topic}`, async (req, res) => {
+    const rawBody = req.rawBody || JSON.stringify(req.body || {});
+    if (!verifyShopifyWebhookHmac(rawBody, req.headers['x-shopify-hmac-sha256'])) {
+      console.warn(`[webhook products-${topic}] HMAC verification failed`);
+      return res.status(401).json({ error: 'Invalid HMAC' });
+    }
+    try {
+      const r = await fetch(PRODUCT_WEBHOOK_TARGET, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Hmac-Sha256': req.headers['x-shopify-hmac-sha256'] || '',
+          'X-Shopify-Topic': `products/${topic}`,
+          'X-Shopify-Shop-Domain': req.headers['x-shopify-shop-domain'] || '',
+        },
+        body: rawBody,
+      });
+      const json = await r.json().catch(() => ({}));
+      console.log(`[webhook products-${topic}] forwarded → ${r.status}`, json);
+      res.status(r.status).json(json);
+    } catch (e) {
+      console.error(`[webhook products-${topic}] forward failed`, e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
 });
 
 app.post('/api/shopify/sync-orders', requireAuth, async (req, res) => {
