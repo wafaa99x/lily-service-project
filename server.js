@@ -374,6 +374,9 @@ app.post('/api/shopify/sync-products', requireAuth, async (req, res) => {
 const PRODUCT_WEBHOOK_TARGET =
   process.env.SHOPIFY_PRODUCTS_WEBHOOK_URL ||
   'https://adcjzrstjrdxzfobcfbl.supabase.co/functions/v1/shopify-products-webhook';
+const ORDER_WEBHOOK_TARGET =
+  process.env.SHOPIFY_ORDER_WEBHOOK_URL ||
+  'https://adcjzrstjrdxzfobcfbl.supabase.co/functions/v1/shopify-order-webhook';
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || '';
 
 function verifyShopifyWebhookHmac(rawBody, hmacHeader) {
@@ -388,32 +391,42 @@ function verifyShopifyWebhookHmac(rawBody, hmacHeader) {
   return crypto.timingSafeEqual(a, b);
 }
 
+async function forwardShopifyWebhook(req, res, target, label, topicHeader) {
+  const rawBody = req.rawBody || JSON.stringify(req.body || {});
+  if (!verifyShopifyWebhookHmac(rawBody, req.headers['x-shopify-hmac-sha256'])) {
+    console.warn(`[webhook ${label}] HMAC verification failed`);
+    return res.status(401).json({ error: 'Invalid HMAC' });
+  }
+  try {
+    const r = await fetch(target, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Hmac-Sha256': req.headers['x-shopify-hmac-sha256'] || '',
+        'X-Shopify-Topic': topicHeader,
+        'X-Shopify-Shop-Domain': req.headers['x-shopify-shop-domain'] || '',
+      },
+      body: rawBody,
+    });
+    const json = await r.json().catch(() => ({}));
+    console.log(`[webhook ${label}] forwarded → ${r.status}`, json);
+    res.status(r.status).json(json);
+  } catch (e) {
+    console.error(`[webhook ${label}] forward failed`, e.message);
+    res.status(500).json({ error: e.message });
+  }
+}
+
 ['create', 'update', 'delete'].forEach((topic) => {
-  app.post(`/api/shopify/webhook/products-${topic}`, async (req, res) => {
-    const rawBody = req.rawBody || JSON.stringify(req.body || {});
-    if (!verifyShopifyWebhookHmac(rawBody, req.headers['x-shopify-hmac-sha256'])) {
-      console.warn(`[webhook products-${topic}] HMAC verification failed`);
-      return res.status(401).json({ error: 'Invalid HMAC' });
-    }
-    try {
-      const r = await fetch(PRODUCT_WEBHOOK_TARGET, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Hmac-Sha256': req.headers['x-shopify-hmac-sha256'] || '',
-          'X-Shopify-Topic': `products/${topic}`,
-          'X-Shopify-Shop-Domain': req.headers['x-shopify-shop-domain'] || '',
-        },
-        body: rawBody,
-      });
-      const json = await r.json().catch(() => ({}));
-      console.log(`[webhook products-${topic}] forwarded → ${r.status}`, json);
-      res.status(r.status).json(json);
-    } catch (e) {
-      console.error(`[webhook products-${topic}] forward failed`, e.message);
-      res.status(500).json({ error: e.message });
-    }
-  });
+  app.post(`/api/shopify/webhook/products-${topic}`, (req, res) =>
+    forwardShopifyWebhook(req, res, PRODUCT_WEBHOOK_TARGET, `products-${topic}`, `products/${topic}`)
+  );
+});
+
+['create', 'paid', 'cancelled'].forEach((topic) => {
+  app.post(`/api/shopify/webhook/orders-${topic}`, (req, res) =>
+    forwardShopifyWebhook(req, res, ORDER_WEBHOOK_TARGET, `orders-${topic}`, `orders/${topic}`)
+  );
 });
 
 app.post('/api/shopify/sync-orders', requireAuth, async (req, res) => {

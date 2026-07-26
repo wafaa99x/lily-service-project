@@ -30,6 +30,37 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_products_shopify_product_id
   ON products (shopify_product_id)
   WHERE shopify_product_id IS NOT NULL;
 
+-- The partial unique index above cannot be used by ON CONFLICT inference in
+-- UPSERT statements. Replace it with a full unique constraint so webhook
+-- upserts (`.upsert(record, { onConflict: 'shopify_product_id' })`) resolve
+-- correctly. NULL values are still treated as distinct, which is fine since
+-- real product rows always have a shopify_product_id.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_products_shopify_product_id'
+  ) THEN
+    -- already a constraint; nothing to do
+    NULL;
+  ELSIF EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'uq_products_shopify_product_id'
+  ) THEN
+    ALTER TABLE products DROP CONSTRAINT IF EXISTS uq_products_shopify_product_id;
+    ALTER TABLE products ADD CONSTRAINT uq_products_shopify_product_id UNIQUE (shopify_product_id);
+  END IF;
+END $$;
+
+-- As a final safety net, ensure the constraint exists even on a fresh DB
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_products_shopify_product_id'
+  ) THEN
+    ALTER TABLE products
+      ADD CONSTRAINT uq_products_shopify_product_id UNIQUE (shopify_product_id);
+  END IF;
+END $$;
+
 -- Self-reference foreign key for linked products
 ALTER TABLE products
   DROP CONSTRAINT IF EXISTS fk_linked_product;
@@ -86,6 +117,25 @@ DECLARE
   linked_id text;
   booking_count integer;
 BEGIN
+  -- Cancellation/metadata-only UPDATEs (e.g. is_active toggle from the order
+  -- webhook) should not be blocked by capacity or 24h-window rules. Detect by
+  -- checking whether any column other than is_active actually changed.
+  IF TG_OP = 'UPDATE'
+     AND NEW.product_id      = OLD.product_id
+     AND NEW.booking_date    = OLD.booking_date
+     AND NEW.slot            = OLD.slot
+     AND NEW.shopify_order_id IS NOT DISTINCT FROM OLD.shopify_order_id
+     AND COALESCE(NEW.customer_name,  '') = COALESCE(OLD.customer_name,  '')
+     AND COALESCE(NEW.customer_phone, '') = COALESCE(OLD.customer_phone, '')
+     AND COALESCE(NEW.customer_email, '') = COALESCE(OLD.customer_email, '')
+     AND COALESCE(NEW.delivery_governorate, '') = COALESCE(OLD.delivery_governorate, '')
+     AND COALESCE(NEW.delivery_area, '')         = COALESCE(OLD.delivery_area, '')
+     AND COALESCE(NEW.delivery_price::text, '')  = COALESCE(OLD.delivery_price::text, '')
+     AND COALESCE(NEW.notes, '') = COALESCE(OLD.notes, '')
+  THEN
+    RETURN NEW;
+  END IF;
+
   IF NEW.booking_date < CURRENT_DATE THEN
     RAISE EXCEPTION 'Past-date bookings are not allowed';
   END IF;
@@ -191,6 +241,7 @@ CREATE TABLE IF NOT EXISTS delivery_zones (
 );
 
 ALTER TABLE bookings ADD COLUMN IF NOT EXISTS delivery_governorate TEXT;
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
 ALTER TABLE delivery_zones ADD COLUMN IF NOT EXISTS governorate TEXT;
 
 -- ✏️  Delivery zones (Arabic) — edit freely in the admin panel

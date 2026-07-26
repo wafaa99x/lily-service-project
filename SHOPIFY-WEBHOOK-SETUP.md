@@ -28,7 +28,7 @@ Set these in Supabase:
 supabase secrets set SUPABASE_URL="https://<project-ref>.supabase.co"
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY="<service-role-key>"
 supabase secrets set SHOPIFY_WEBHOOK_SECRET="<shopify-webhook-signing-secret>"
-supabase secrets set SHOPIFY_PRODUCTS_WEBHOOK_SECRET="<products-webhook-signing-secret>"
+supabase secrets set SHOPIFY_WEBHOOK_SECRET="<products-webhook-signing-secret>"
 ```
 
 If you use one shared Shopify webhook secret for all topics, setting only `SHOPIFY_WEBHOOK_SECRET` is enough.
