@@ -15,7 +15,10 @@ const TOKEN_TTL_SECONDS = 2 * 60 * 60;
 const LOGIN_WINDOW_MS = Number(process.env.LOGIN_WINDOW_MS || 15 * 60 * 1000);
 const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 5);
 const LOGIN_LOCKOUT_MS = Number(process.env.LOGIN_LOCKOUT_MS || 15 * 60 * 1000);
-const SHOPIFY_ORDER_SYNC_INTERVAL_MS = Number(process.env.SHOPIFY_ORDER_SYNC_INTERVAL_MS || 0.25 * 60 * 1000);
+// Webhook-only mode by default: orders are kept in sync via the orders/{create,paid,cancelled}
+// webhooks registered in Shopify. Set this to a positive number of milliseconds (e.g. 90000)
+// only if you want a periodic API-poll fallback in addition to webhooks.
+const SHOPIFY_ORDER_SYNC_INTERVAL_MS = Number(process.env.SHOPIFY_ORDER_SYNC_INTERVAL_MS || 0);
 const ALLOWED_TABLES = new Set(['products', 'bookings', 'blocked_slots', 'delivery_zones']);
 const ALLOWED_FILTER_OPS = new Set(['eq', 'gte', 'lte', 'in', 'ilike', 'not']);
 

@@ -254,7 +254,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   var sb = supabase.createClient(BK_SUPABASE_URL, BK_SUPABASE_KEY);
 
   // ─── Constants ───────────────────────────────────────────────────
-  var MAX_BOOKINGS_PER_SLOT = 3;
+  var MAX_BOOKINGS_PER_SLOT = 2;
   var SLOTS = {
     morning: { label: 'Morning', time: '6:30 AM – 8:30 AM', icon: '🌅' },
     evening: { label: 'Evening', time: '2:30 PM – 6:30 PM', icon: '🌇' }
@@ -1006,7 +1006,7 @@ function syncAddToCartState() {
 
       if (!state.avail || state.avail[state.selSlot] === false) {
         if (state.avail && state.avail.counts && state.avail.counts[state.selSlot] >= MAX_BOOKINGS_PER_SLOT) {
-          showErr('That slot has reached the daily capacity of 3 bookings. Please choose another time.');
+          showErr('That slot has reached the daily capacity of 2 bookings. Please choose another time.');
         } else {
           showErr('That slot is already booked for this product on the selected date. Please choose another time.');
         }

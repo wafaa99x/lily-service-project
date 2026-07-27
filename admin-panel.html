@@ -369,7 +369,7 @@ tbody tr:hover { background: var(--surface2); }
           <div class="stat-card">
             <div class="stat-label">Today's Bookings</div>
             <div class="stat-value" id="stat-today">—</div>
-            <div class="stat-sub">out of 6 possible (max 3 morning + 3 evening)</div>
+            <div class="stat-sub">out of 4 possible (max 2 morning + 2 evening)</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">This Week</div>
@@ -384,7 +384,7 @@ tbody tr:hover { background: var(--surface2); }
           <div class="stat-card">
             <div class="stat-label">Today's Capacity</div>
             <div class="stat-value" id="stat-capacity">—</div>
-            <div class="stat-sub" id="stat-capacity-sub">morning / evening (max 3 each)</div>
+            <div class="stat-sub" id="stat-capacity-sub">morning / evening (max 2 each)</div>
           </div>
           <!-- <div class="stat-card">
             <div class="stat-label">Delivery Zones</div>
@@ -1114,10 +1114,10 @@ async function loadDashboard() {
   const capEl = document.getElementById('stat-capacity');
   const capSub = document.getElementById('stat-capacity-sub');
   if (capEl) {
-    capEl.textContent = `${slotCounts.morning}/3 · ${slotCounts.evening}/3`;
+    capEl.textContent = `${slotCounts.morning}/2 · ${slotCounts.evening}/2`;
     if (capSub) {
-      const fullMorning = slotCounts.morning >= 3;
-      const fullEvening = slotCounts.evening >= 3;
+      const fullMorning = slotCounts.morning >= 2;
+      const fullEvening = slotCounts.evening >= 2;
       if (fullMorning && fullEvening) capSub.textContent = '🔴 Both slots full today';
       else if (fullMorning) capSub.textContent = '🟠 Morning full · evening open';
       else if (fullEvening) capSub.textContent = '🟠 Evening full · morning open';

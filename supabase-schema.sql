@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 -- - no bookings inside the 24-hour prep window
 -- - no double booking for the same product/date/slot
 -- - linked products (Dafwa/Naseem) block each other for the same date/slot
--- - no more than 3 bookings per slot per day across all products
+-- - no more than 2 bookings per slot per day across all products
 CREATE OR REPLACE FUNCTION enforce_booking_integrity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -179,8 +179,8 @@ BEGIN
     AND slot = NEW.slot
     AND (TG_OP = 'INSERT' OR id <> NEW.id);
 
-  IF booking_count >= 3 THEN
-    RAISE EXCEPTION 'This slot has reached the daily capacity of 3 bookings';
+  IF booking_count >= 2 THEN
+    RAISE EXCEPTION 'This slot has reached the daily capacity of 2 bookings';
   END IF;
 
   RETURN NEW;
