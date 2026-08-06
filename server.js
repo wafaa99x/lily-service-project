@@ -19,7 +19,7 @@ const LOGIN_LOCKOUT_MS = Number(process.env.LOGIN_LOCKOUT_MS || 15 * 60 * 1000);
 // webhooks registered in Shopify. Set this to a positive number of milliseconds (e.g. 90000)
 // only if you want a periodic API-poll fallback in addition to webhooks.
 const SHOPIFY_ORDER_SYNC_INTERVAL_MS = Number(process.env.SHOPIFY_ORDER_SYNC_INTERVAL_MS || 0);
-const ALLOWED_TABLES = new Set(['products', 'bookings', 'blocked_slots', 'delivery_zones']);
+const ALLOWED_TABLES = new Set(['products', 'bookings', 'blocked_slots', 'delivery_zones', 'booking_rejections']);
 const ALLOWED_FILTER_OPS = new Set(['eq', 'gte', 'lte', 'in', 'ilike', 'not']);
 
 // In-memory login protection. For multi-instance deployments, use shared storage (Redis).

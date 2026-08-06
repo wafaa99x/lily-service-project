@@ -365,6 +365,12 @@ tbody tr:hover { background: var(--surface2); }
           </div>
         </div>
 
+        <!-- Paid orders that could not be booked (capacity reached) — flag for refund -->
+        <div class="alert alert-error" id="rejection-alert" style="display:none;border:1.5px solid #DC2626;background:#FEF2F2;padding:14px 16px;border-radius:10px;margin-bottom:16px;">
+          <strong>⚠️ Paid order(s) could NOT be booked — needs attention</strong>
+          <div id="rejection-alert-detail" style="font-size:12.5px;color:#7F1D1D;margin-top:6px;line-height:1.6;"></div>
+        </div>
+
         <div class="stats-row">
           <div class="stat-card">
             <div class="stat-label">Today's Bookings</div>
@@ -941,6 +947,7 @@ async function initApp() {
   setupAutoShopifySync();
   setupRealtimeSubscriptions();
   hydrateLastWebhookUpdateFromDb();
+  loadRejectionAlerts();
 }
 
 function formatTs(iso) {
@@ -1008,6 +1015,7 @@ function scheduleUiRefresh() {
       loadProducts();
       populateProductFilters();
     }
+    loadRejectionAlerts();
   }, 220);
 }
 
@@ -1021,6 +1029,11 @@ function setupRealtimeSubscriptions() {
   rtChannel = sb.channel('admin-live-updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
       setSyncStatus('Auto Sync: Live (bookings updated)', true);
+      markWebhookUpdate();
+      scheduleUiRefresh();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'booking_rejections' }, () => {
+      setSyncStatus('Auto Sync: Live (rejections updated)', true);
       markWebhookUpdate();
       scheduleUiRefresh();
     })
@@ -1082,18 +1095,49 @@ function productNameFor(id) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────
+async function loadRejectionAlerts() {
+  const el = document.getElementById('rejection-alert');
+  const detail = document.getElementById('rejection-alert-detail');
+  if (!el || !sb) return;
+  try {
+    const { data } = await sb.from('booking_rejections')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (!data || !data.length) {
+      el.style.display = 'none';
+      detail.textContent = '';
+      return;
+    }
+    el.style.display = 'block';
+    detail.innerHTML = data.map(r => {
+      const date = r.booking_date || '—';
+      const slot = r.slot || '—';
+      const prod = r.product_name || r.product_id || '—';
+      const order = r.order_name || r.shopify_order_id || '—';
+      return `<div style="margin-bottom:6px;">
+        <strong>${order}</strong> — ${prod} (${date} ${slot})<br>
+        <span style="color:#B91C1C;">${r.reason}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    // Table may not exist yet in older deployments — hide quietly.
+    el.style.display = 'none';
+  }
+}
+
 async function loadDashboard() {
   const today = new Date().toISOString().split('T')[0];
   const weekEnd = new Date(); weekEnd.setDate(weekEnd.getDate() + 7);
   const weekStr = weekEnd.toISOString().split('T')[0];
 
   const [todayRes, weekRes, blocksRes, zonesRes, upcomingRes, todaySlotsRes] = await Promise.all([
-    sb.from('bookings').select('id', { count: 'exact' }).eq('booking_date', today),
-    sb.from('bookings').select('id', { count: 'exact' }).gte('booking_date', today).lte('booking_date', weekStr),
+    sb.from('bookings').select('id', { count: 'exact' }).eq('is_active', true).eq('booking_date', today),
+    sb.from('bookings').select('id', { count: 'exact' }).eq('is_active', true).gte('booking_date', today).lte('booking_date', weekStr),
     sb.from('blocked_slots').select('id', { count: 'exact' }).gte('block_date', today),
     sb.from('delivery_zones').select('id', { count: 'exact' }).eq('is_active', true),
-    sb.from('bookings').select('*').gte('booking_date', today).lte('booking_date', weekStr).order('booking_date').order('slot'),
-    sb.from('bookings').select('slot').eq('booking_date', today)
+    sb.from('bookings').select('*').eq('is_active', true).gte('booking_date', today).lte('booking_date', weekStr).order('booking_date').order('slot'),
+    sb.from('bookings').select('slot').eq('is_active', true).eq('booking_date', today)
   ]);
 
   const slotCounts = { morning: 0, evening: 0 };
@@ -1160,7 +1204,7 @@ async function loadBookings() {
     return;
   }
   tbody.innerHTML = data.map(r => `
-    <tr>
+    <tr${r.is_active === false ? ' style="opacity:0.55;background:#F8FAFC;"' : ''}>
       <td>${r.booking_date}</td>
       <td>${productNameFor(r.product_id)}</td>
       <td>${slotBadge(r.slot)}</td>
@@ -1168,6 +1212,7 @@ async function loadBookings() {
       <td>${r.customer_phone || '—'}</td>
       <td>${r.shopify_order_id || '—'}</td>
       <td>
+        ${r.is_active === false ? '<span class="badge badge-blocked">Cancelled</span> ' : ''}
         <button class="btn btn-danger btn-sm" onclick="deleteBooking('${r.id}')">Delete</button>
       </td>
     </tr>`).join('');

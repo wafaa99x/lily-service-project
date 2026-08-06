@@ -282,7 +282,8 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     fullBlockedDates: {},
     fullBookedDates: {},
     checking: false,
-    liveRefreshTimer: null
+    liveRefreshTimer: null,
+    rtChannel: null
   };
 
   // ─── TIME RESTRICTION HELPERS (24-hour rule) ─────────────────────
@@ -458,6 +459,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     var max = fmt(getMaxBookableDate());
     var r = await sb.from('bookings')
       .select('booking_date, slot, product_id')
+      .eq('is_active', true)
       .gte('booking_date', min)
       .lte('booking_date', max);
 
@@ -482,6 +484,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     var counts = { morning: 0, evening: 0 };
     var r = await sb.from('bookings')
       .select('slot')
+      .eq('is_active', true)
       .eq('booking_date', dateStr);
 
     (r.data || []).forEach(function(b) {
@@ -508,6 +511,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     // 1. Bookings for THIS product
     var r1 = await sb.from('bookings')
       .select('slot')
+      .eq('is_active', true)
       .in('product_id', productIds)
       .eq('booking_date', dateStr);
     (r1.data || []).forEach(function(b) {
@@ -518,6 +522,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     if (linkedIds.length) {
       var r2 = await sb.from('bookings')
         .select('slot')
+        .eq('is_active', true)
         .in('product_id', linkedIds)
         .eq('booking_date', dateStr);
       (r2.data || []).forEach(function(b) {
@@ -568,6 +573,21 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
         // Keep interval alive even if one refresh fails.
       });
     }, 45000);
+    // React instantly when the bookings/blocked_slots tables change —
+    // this removes the delay when another tab places an order.
+    try {
+      state.rtChannel = sb
+        .channel('bk-widget-live-' + Math.random().toString(36).slice(2, 8))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, function() {
+          refreshLiveAvailability().catch(function() {});
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'blocked_slots' }, function() {
+          refreshLiveAvailability().catch(function() {});
+        })
+        .subscribe();
+    } catch (e) {
+      // Realtime not available — the 45s poll still acts as a fallback.
+    }
   }
 
   // ─── Load delivery zones ──────────────────────────────────────────

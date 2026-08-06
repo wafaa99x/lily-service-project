@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS bookings (
 -- - no double booking for the same product/date/slot
 -- - linked products (Dafwa/Naseem) block each other for the same date/slot
 -- - no more than 2 bookings per slot per day across all products
+-- - capacity only counts ACTIVE bookings, so cancelled orders free the slot
 CREATE OR REPLACE FUNCTION enforce_booking_integrity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -149,11 +150,16 @@ BEGIN
     RAISE EXCEPTION 'Bookings must be at least 24 hours in advance';
   END IF;
 
+  -- Serialize capacity/linked checks for the same (date, slot) so two
+  -- concurrent inserts can't both pass the count check and over-book a slot.
+  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.booking_date::text || '|' || NEW.slot, 0));
+
   IF EXISTS (
     SELECT 1 FROM bookings
     WHERE product_id = NEW.product_id
       AND booking_date = NEW.booking_date
       AND slot = NEW.slot
+      AND is_active = TRUE
       AND (TG_OP = 'INSERT' OR id <> NEW.id)
   ) THEN
     RAISE EXCEPTION 'This product is already booked for that date and slot';
@@ -168,6 +174,7 @@ BEGIN
     WHERE product_id = linked_id
       AND booking_date = NEW.booking_date
       AND slot = NEW.slot
+      AND is_active = TRUE
       AND (TG_OP = 'INSERT' OR id <> NEW.id)
   ) THEN
     RAISE EXCEPTION 'Linked product is already booked for that date and slot';
@@ -177,6 +184,7 @@ BEGIN
   FROM bookings
   WHERE booking_date = NEW.booking_date
     AND slot = NEW.slot
+    AND is_active = TRUE
     AND (TG_OP = 'INSERT' OR id <> NEW.id);
 
   IF booking_count >= 2 THEN
@@ -391,6 +399,33 @@ INSERT INTO delivery_zones (governorate, area_name, price, sort_order) VALUES
 ON CONFLICT DO NOTHING;
 
 
+-- ----------------------------------------------------------------
+-- TABLE 5: BOOKING REJECTIONS  (paid orders that hit capacity)
+-- ----------------------------------------------------------------
+-- When a paid Shopify order cannot create its booking row (slot already at
+-- capacity / linked product taken), the order webhook records the rejection
+-- here so the admin panel can flag "paid but unbooked" orders for refunds.
+CREATE TABLE IF NOT EXISTS booking_rejections (
+  id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  shopify_order_id TEXT NOT NULL,
+  order_name       TEXT,
+  product_id       TEXT,
+  product_name     TEXT,
+  booking_date     DATE,
+  slot             TEXT,
+  reason           TEXT NOT NULL,
+  customer_email   TEXT,
+  customer_name    TEXT,
+  customer_phone   TEXT,
+  created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_booking_rejections_created
+  ON booking_rejections(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_booking_rejections_order
+  ON booking_rejections(shopify_order_id);
+
 -- ================================================================
 -- ROW LEVEL SECURITY (RLS)
 -- ================================================================
@@ -402,6 +437,7 @@ ALTER TABLE products       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE blocked_slots  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delivery_zones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE booking_rejections ENABLE ROW LEVEL SECURITY;
 
 -- Public read access (for booking widget availability checks)
 DROP POLICY IF EXISTS "Public read products" ON products;
@@ -415,6 +451,10 @@ CREATE POLICY "Public read bookings"
 DROP POLICY IF EXISTS "Public read blocked_slots" ON blocked_slots;
 CREATE POLICY "Public read blocked_slots"
   ON blocked_slots FOR SELECT USING (TRUE);
+
+DROP POLICY IF EXISTS "Public read booking_rejections" ON booking_rejections;
+CREATE POLICY "Public read booking_rejections"
+  ON booking_rejections FOR SELECT USING (TRUE);
 
 DROP POLICY IF EXISTS "Public read active delivery zones" ON delivery_zones;
 CREATE POLICY "Public read active delivery zones"
