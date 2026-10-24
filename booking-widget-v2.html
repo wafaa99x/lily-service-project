@@ -1,35 +1,39 @@
 
 <!--
 ===========================================================
-  SHOPIFY BOOKING WIDGET v3 — WITH 24-HOUR RESTRICTION
-  Paste this inside your product page liquid template
-  INSIDE the <form action="/cart/add"> tag
+  LILY SERVICE BOOKING WIDGET
+  Source for the theme file: snippets/booking-system.liquid
+  Rendered inside the product form by blocks/buy-buttons.liquid:
+    {% render 'booking-system' %}
 ===========================================================
-  WHAT TO CHANGE PER PRODUCT:
-  Line ~30 → change PRODUCT_NAME to your product name
-              e.g. "Dafwa" / "Naseem" / "Product 3" etc.
+  Flow (unchanged): pick date → pick morning/evening slot →
+  Add to cart → cart page (delivery area) → checkout.
+  Rules: 24h notice (Kuwait time), max 2 bookings per slot per day,
+  one booking per product per slot, linked products block each other,
+  admin-blocked dates/slots.
 ===========================================================
 -->
 
 <!-- Shopify reads these as order line item properties -->
 <input type="hidden" id="bk-date-val"  name="properties[📅 Date]">
 <input type="hidden" id="bk-slot-val"  name="properties[⏰ Slot]">
+<!-- Hidden (underscore) machine-readable copies for the webhook/cart guard -->
+<input type="hidden" id="bk-date-iso"  name="properties[_bk_date]">
+<input type="hidden" id="bk-slot-key"  name="properties[_bk_slot]">
 
 <!-- Widget Mount Point -->
 <div id="bk-widget"></div>
 
 <script>
-// ============================================================
-//  ★  CHANGE THIS ONE LINE PER PRODUCT  ★
-// ============================================================
-var BK_PRODUCT_ID = "8811194319045";
-// Use the Shopify product ID for each product page.
-// ============================================================
+// Product being viewed. Filled by Liquid; the widget also reads it from the
+// product form, so the same snippet works on every booking product.
+var BK_PRODUCT_ID = "{{ product.id }}";
 
 var BK_SUPABASE_URL = "https://adcjzrstjrdxzfobcfbl.supabase.co";
 var BK_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkY2p6cnN0anJkeHpmb2JjZmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY0MDYsImV4cCI6MjA5Mjc3MjQwNn0.vDPAwlOAr9OaGHU-unHI3l3_guja_wLjhCAivZ8nscA";
 
-// Linked pairs — if one is booked, the other is blocked
+// Linked pairs (Shopify product IDs) — if one is booked, the other is blocked.
+// ستاند دفوه ↔ ستاند نسيم. Also set in the DB (products.linked_product_id).
 var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 </script>
 
@@ -71,12 +75,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   box-shadow: 0 6px 18px rgba(42, 26, 54, 0.06);
 }
 .bk-card:focus-within { box-shadow: 0 0 0 3px rgba(143,107,165,.18), 0 6px 18px rgba(42, 26, 54, 0.08); }
-
-
-.bk-card.bk-card-invalid {
-  border-color: rgba(180, 35, 24, 0.45);
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.09), 0 8px 24px rgba(42, 26, 54, 0.08);
-}
 
 .bk-card-head {
   display: flex; align-items: center; gap: 10px;
@@ -141,6 +139,98 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 
 /* ── Slots ── */
 .bk-slots { display: flex; gap: 12px; padding: 14px; }
+
+/* Floating WhatsApp-chat-style availability bubble —
+   sits above the store's fixed WhatsApp icon (bottom-left: 20px, 60x60) */
+.bk-avail-float {
+  position: fixed;
+  left: 20px;
+  bottom: 90px;
+  z-index: 9998;
+  box-sizing: border-box;
+  max-width: calc(100vw - 40px);
+  width: max-content;
+  background: #ffffff;
+  border: 1px solid #E4D9EC;
+  border-radius: 12px;
+  padding: 7px 12px 7px 26px;
+  box-shadow: 0 6px 16px rgba(42, 26, 54, 0.16);
+  direction: rtl;
+  text-align: right;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #51405F;
+  line-height: 1.6;
+  animation: bkAvailPop .25s ease;
+}
+.bk-avail-float::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-right: 1px solid #E4D9EC;
+  border-bottom: 1px solid #E4D9EC;
+  transform: rotate(45deg);
+}
+.bk-avail-float-close {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #F1EBF6;
+  color: #7E738A;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bk-avail-float-close:hover { background: #E4D9EC; color: #51405F; }
+@keyframes bkAvailPop {
+  from { opacity: 0; transform: translateY(8px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Extra-compact on small phones */
+@media (max-width: 480px) {
+  .bk-avail-float {
+    font-size: 11px;
+    line-height: 1.55;
+    padding: 6px 10px 6px 24px;
+    border-radius: 11px;
+  }
+  .bk-avail-float-close {
+    top: 5px;
+    left: 5px;
+    width: 15px;
+    height: 15px;
+    font-size: 9px;
+  }
+  .bk-avail-float::after { left: 20px; }
+}
+
+/* Delivery-vs-service note shown under the slots */
+.bk-delivery-note {
+  margin: 0 14px 14px;
+  padding: 9px 12px;
+  border-radius: 0px;
+  background: #F4ECF8;
+  border: 1px solid #D6C3E3;
+  color: var(--mid);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: right;
+  direction: rtl;
+}
 .bk-slot {
   flex: 1; padding: 12px 8px; border-radius: 0px;
   border: 1.5px solid var(--gold-border); background: linear-gradient(180deg, #FBF8FD, #F7F2FA);
@@ -152,7 +242,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 .bk-slot.bk-slot-sel .bk-slot-time,
 .bk-slot.bk-slot-sel .bk-slot-st { color: rgba(255,255,255,.9); }
 .bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; }
-.bk-slot-ico  { font-size: 20px; margin-bottom: 4px; }
 .bk-slot-ico  { font-size: 18px; margin-bottom: 3px; }
 .bk-slot-lbl  { display: block; font-size: 12px; font-weight: 600; color: var(--mid); }
 .bk-slot-time { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
@@ -164,55 +253,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 .bk-slots-ph {
   padding: 16px 14px; text-align: center;
   color: var(--muted); font-size: 13px;
-}
-
-/* ── Area ── */
-.bk-area-wrap { padding: 12px 14px 14px; }
-.bk-area-sel {
-  width: 100%; padding: 10px 40px 10px 12px; border-radius: 0px;
-  border: 1.5px solid var(--gold-border); background: var(--white);
-  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--dark);
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath fill='%238F6BA5' d='M5 7 0 0h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 13px center;
-  cursor: pointer; transition: border-color .15s;
-}
-.bk-area-sel:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(143,107,165,.12); }
-.bk-area-sel:hover { border-color: var(--gold-lt); }
-.bk-area-sel.bk-field-invalid {
-  border-color: rgba(180, 35, 24, 0.6);
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.08);
-}
-.bk-fee {
-  margin-top: 8px; padding: 9px 13px;
-  background: #F4ECF8; border: 1px solid #D6C3E3;
-  border-radius: 0px; font-size: 13px; font-weight: 600; color: var(--green);
-  display: none;
-}
-.bk-fee.show { display: block; }
-
-.bk-inline-error {
-  margin-top: 8px;
-  padding: 9px 11px;
-  border-radius: 0px;
-  background: #FFF6F4;
-  border: 1px solid rgba(180, 35, 24, 0.22);
-  color: var(--red);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.bk-required {
-  margin-left: auto;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.7px;
-  text-transform: uppercase;
-  color: var(--gold);
-  background: rgba(143,107,165,0.08);
-  border: 1px solid rgba(143,107,165,0.18);
-  padding: 3px 8px;
-  border-radius: 0px;
 }
 
 /* ── Summary ── */
@@ -235,6 +275,16 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 }
 #bk-err.show { display: block; }
 
+/* Flash effect when a validation error appears (e.g. slot taken in another tab) */
+@keyframes bk-flash {
+  0%   { background: #FFE3DF; border-color: #E8938B; }
+  30%  { background: #FFD9D3; border-color: #E26B60; }
+  100% { background: #FFF0EE; border-color: #F5C6C2; }
+}
+#bk-err.bk-flash {
+  animation: bk-flash .9s ease-out;
+}
+
 /* ── Checking spinner ── */
 .bk-spin {
   display: inline-block; width: 14px; height: 14px;
@@ -250,8 +300,11 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 (function () {
   'use strict';
 
-  // ─── Supabase client ─────────────────────────────────────────────
+  // ─── Supabase client (public key: reads availability only) ───────
   var sb = supabase.createClient(BK_SUPABASE_URL, BK_SUPABASE_KEY);
+
+  // Public, customer-data-free view of active bookings (see SQL migration).
+  var SLOTS_TABLE = 'booking_slots';
 
   // ─── Constants ───────────────────────────────────────────────────
   var MAX_BOOKINGS_PER_SLOT = 2;
@@ -263,72 +316,70 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
+  var HOUR_MS = 60 * 60 * 1000;
+  var KUWAIT_OFFSET_MS = 3 * HOUR_MS; // Kuwait is UTC+3 all year (no DST)
 
   // ─── State ───────────────────────────────────────────────────────
   var state = {
     viewMonth: null,   // Date object — first of displayed month
-    selDate: null,     // selected Date
+    selDate: null,     // selected Date (calendar day)
     selSlot: null,     // 'morning' | 'evening'
-    selGovName: null,
-    selAreaId: null,
-    selAreaName: null,
-    selPrice: null,
-    avail: null,       // { morning: bool|null, evening: bool|null }
+    avail: null,       // { morning: bool, evening: bool, counts, mine }
     showSlots: false,
-    zones: [],
-    linkedProduct: null,
-    productIds: [BK_PRODUCT_ID],
-    linkedProductIds: [],
+    productIds: [],        // DB ids of this product
+    linkedProductIds: [],  // DB ids of linked products
+    shopifyProductId: null,
     fullBlockedDates: {},
     fullBookedDates: {},
     checking: false,
+    submitting: false,
+    bubbleDismissed: false, // floating availability bubble closed for the current date
     liveRefreshTimer: null,
     rtChannel: null
   };
 
-  // ─── TIME RESTRICTION HELPERS (24-hour rule) ─────────────────────
+  // ─── TIME HELPERS (Kuwait time, 24-hour rule) ─────────────────────
+  // Calendar days are plain local Date objects (y/m/d); every "now"
+  // comparison is done against the slot's real start time in Kuwait, so
+  // customers browsing from another timezone see the same availability
+  // as the database enforces.
+
+  function kuwaitDay(ms) {
+    var k = new Date(ms + KUWAIT_OFFSET_MS);
+    return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+  }
 
   function nowPlus24Hours() {
-    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return new Date(Date.now() + 24 * HOUR_MS);
   }
 
   function getSlotStart(date, slotKey) {
     var hour = slotKey === 'morning' ? 6 : 14;
-    var minute = 30;
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, minute, 0, 0);
+    // 06:30 / 14:30 Kuwait time as an absolute instant
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30) - KUWAIT_OFFSET_MS);
   }
 
   function isSlotBookable(date, slotKey) {
     return getSlotStart(date, slotKey) >= nowPlus24Hours();
   }
-  
-  // Get the minimum bookable date (24 hours from now, at midnight)
+
+  // First calendar day that can still have a bookable slot (Kuwait date of now + 24h)
   function getMinBookableDate() {
-    var now = new Date();
-    // Add 24 hours to current time
-    var minTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    // Return date at midnight (start of that day)
-    var minDate = new Date(minTime.getFullYear(), minTime.getMonth(), minTime.getDate());
-    return minDate;
+    return kuwaitDay(Date.now() + 24 * HOUR_MS);
   }
 
-  // Get maximum bookable date (2 months from today)
+  // Maximum bookable date (2 months from today, Kuwait date)
   function getMaxBookableDate() {
-    var d = new Date();
-    d.setHours(0, 0, 0, 0);
+    var d = kuwaitDay(Date.now());
     d.setMonth(d.getMonth() + 2);
     return d;
   }
 
-  // Check if a date is bookable (not past, not today, not within 24 hours)
+  // Date must be within range and have at least one bookable slot
   function isDateBookable(date) {
-    var maxDate = getMaxBookableDate();
-    
     var compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    var compareMax = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-    
-    // Date must be within max range and have at least one bookable slot
-    return compareDate <= compareMax && (isSlotBookable(date, 'morning') || isSlotBookable(date, 'evening'));
+    return compareDate <= getMaxBookableDate() &&
+      (isSlotBookable(date, 'morning') || isSlotBookable(date, 'evening'));
   }
 
   // Format date for API (YYYY-MM-DD)
@@ -339,19 +390,12 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       String(d.getDate()).padStart(2, '0');
   }
 
-  // Get today at midnight
-  function todayMidnight() {
-    var d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-
-  // ─── Availability check ──────────────────────────────────────────
-  function linkedProductFor(name) {
+  // ─── Product scope ───────────────────────────────────────────────
+  function linkedShopifyIdFor(shopifyId) {
     for (var i = 0; i < BK_LINKED_PAIRS.length; i++) {
       var pair = BK_LINKED_PAIRS[i];
-      if (pair[0] === name) return pair[1];
-      if (pair[1] === name) return pair[0];
+      if (pair[0] === shopifyId) return pair[1];
+      if (pair[1] === shopifyId) return pair[0];
     }
     return null;
   }
@@ -365,19 +409,22 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     return out;
   }
 
+  function myIds() {
+    return state.productIds.length ? state.productIds : [state.shopifyProductId || BK_PRODUCT_ID];
+  }
+
   function inferShopifyProductId() {
     try {
-      var id = null;
-      if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
-        id = window.ShopifyAnalytics.meta.product.id;
+      var root = document.getElementById('bk-widget');
+      var pfc = root && root.closest && root.closest('product-form-component');
+      if (pfc && pfc.dataset && pfc.dataset.productId) return String(pfc.dataset.productId);
+      if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product &&
+          window.ShopifyAnalytics.meta.product.id) {
+        return String(window.ShopifyAnalytics.meta.product.id);
       }
-      if (!id && window.meta && window.meta.product && window.meta.product.id) {
-        id = window.meta.product.id;
-      }
-      return id ? String(id) : null;
-    } catch (_) {
-      return null;
-    }
+      if (window.meta && window.meta.product && window.meta.product.id) return String(window.meta.product.id);
+    } catch (_) { /* fall through */ }
+    return /^\d+$/.test(BK_PRODUCT_ID) ? BK_PRODUCT_ID : null;
   }
 
   function inferProductHandle() {
@@ -391,42 +438,35 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   }
 
   async function resolveProductScope() {
-    var linkedFallback = linkedProductFor(BK_PRODUCT_ID);
-    state.productIds = uniq([BK_PRODUCT_ID]);
-    state.linkedProductIds = uniq([linkedFallback]);
-
-    var shopifyId = inferShopifyProductId();
+    state.shopifyProductId = inferShopifyProductId();
+    var shopifyId = state.shopifyProductId;
     var handle = inferProductHandle();
 
     var r = await sb.from('products')
-      .select('id, linked_product_id, shopify_product_id, shopify_handle')
-      .eq('is_active', true);
-
+      .select('id, linked_product_id, shopify_product_id, shopify_handle');
     var rows = r.data || [];
-    if (!rows.length) return;
 
-    var matched = rows.filter(function(p) {
-      return p.id === BK_PRODUCT_ID
-        || (shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId)
-        || (p.shopify_product_id && String(p.shopify_product_id) === BK_PRODUCT_ID)
-        || (handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase());
+    var base = rows.find(function(p) {
+      return shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId;
+    }) || rows.find(function(p) {
+      return handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase();
     });
+    if (!base) return;
 
-    if (!matched.length) return;
+    var linked = [];
+    if (base.linked_product_id) linked.push(base.linked_product_id);
+    // Fallback: linked pair configured above (Shopify ids → DB ids)
+    var pairShopifyId = linkedShopifyIdFor(String(base.shopify_product_id || shopifyId || ''));
+    if (pairShopifyId) {
+      var pairRow = rows.find(function(p) { return String(p.shopify_product_id) === pairShopifyId; });
+      if (pairRow) linked.push(pairRow.id);
+    }
 
-    var base = matched.find(function(p) { return p.id === BK_PRODUCT_ID; }) ||
-      matched.find(function(p) { return shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId; }) ||
-      matched.find(function(p) { return handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase(); }) ||
-      matched[0];
-
-    var productIds = base && base.id ? [base.id] : [BK_PRODUCT_ID];
-    var linkedIds = [linkedFallback];
-    if (base && base.linked_product_id) linkedIds.push(base.linked_product_id);
-
-    state.productIds = uniq(productIds);
-    state.linkedProductIds = uniq(linkedIds);
+    state.productIds = [base.id];
+    state.linkedProductIds = uniq(linked);
   }
 
+  // ─── Availability ────────────────────────────────────────────────
   async function loadFullBlockedDates() {
     var min = fmt(getMinBookableDate());
     var max = fmt(getMaxBookableDate());
@@ -436,7 +476,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       .lte('block_date', max);
 
     var grouped = {};
-    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
+    var productIds = myIds();
     (r.data || []).forEach(function(b) {
       if (b.product_id && productIds.indexOf(b.product_id) === -1) return;
       var day = b.block_date;
@@ -457,7 +497,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
   async function loadFullBookedDates() {
     var min = fmt(getMinBookableDate());
     var max = fmt(getMaxBookableDate());
-    var r = await sb.from('bookings')
+    var r = await sb.from(SLOTS_TABLE)
       .select('booking_date, slot, product_id')
       .eq('is_active', true)
       .gte('booking_date', min)
@@ -482,55 +522,38 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
 
   async function loadSlotCounts(dateStr) {
     var counts = { morning: 0, evening: 0 };
-    var r = await sb.from('bookings')
-      .select('slot')
+    var mine = { morning: false, evening: false };
+    var linked = { morning: false, evening: false };
+    var r = await sb.from(SLOTS_TABLE)
+      .select('slot, product_id')
       .eq('is_active', true)
       .eq('booking_date', dateStr);
+    if (r.error) throw r.error;
 
+    var productIds = myIds();
+    var linkedIds = state.linkedProductIds;
     (r.data || []).forEach(function(b) {
       if (!b || !b.slot) return;
       if (b.slot === 'morning') counts.morning += 1;
       if (b.slot === 'evening') counts.evening += 1;
+      // Unique products rule: this product already holds the slot.
+      if (productIds.indexOf(b.product_id) !== -1) mine[b.slot] = true;
+      // Linked product (Dafwa ↔ Naseem) holds the slot.
+      if (linkedIds.indexOf(b.product_id) !== -1) linked[b.slot] = true;
     });
 
-    return counts;
+    return { counts: counts, mine: mine, linked: linked };
   }
 
   async function checkAvail(dateStr) {
-    var counts = await loadSlotCounts(dateStr);
+    var slotData = await loadSlotCounts(dateStr);
     var taken = {
-      morning: false,
-      evening: false
+      morning: slotData.linked.morning,
+      evening: slotData.linked.evening
     };
 
-    var productIds = state.productIds && state.productIds.length ? state.productIds : [BK_PRODUCT_ID];
-    var linkedIds = state.linkedProductIds && state.linkedProductIds.length
-      ? state.linkedProductIds
-      : uniq([linkedProductFor(BK_PRODUCT_ID)]);
-
-    // 1. Bookings for THIS product
-    var r1 = await sb.from('bookings')
-      .select('slot')
-      .eq('is_active', true)
-      .in('product_id', productIds)
-      .eq('booking_date', dateStr);
-    (r1.data || []).forEach(function(b) {
-      taken[b.slot] = true;
-    });
-
-    // 2. Bookings for linked product (if any)
-    if (linkedIds.length) {
-      var r2 = await sb.from('bookings')
-        .select('slot')
-        .eq('is_active', true)
-        .in('product_id', linkedIds)
-        .eq('booking_date', dateStr);
-      (r2.data || []).forEach(function(b) {
-        taken[b.slot] = true;
-      });
-    }
-
-    // 3. Manual blocked slots (global + product-specific)
+    // Manual blocked slots (global + product-specific)
+    var productIds = myIds();
     var r3 = await sb.from('blocked_slots')
       .select('slot, product_id')
       .eq('block_date', dateStr);
@@ -546,73 +569,130 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     });
 
     return {
-      morning: !taken.morning && counts.morning < MAX_BOOKINGS_PER_SLOT,
-      evening: !taken.evening && counts.evening < MAX_BOOKINGS_PER_SLOT,
-      counts: counts
+      morning: !taken.morning && !slotData.mine.morning && slotData.counts.morning < MAX_BOOKINGS_PER_SLOT,
+      evening: !taken.evening && !slotData.mine.evening && slotData.counts.evening < MAX_BOOKINGS_PER_SLOT,
+      counts: slotData.counts,
+      mine: slotData.mine
     };
   }
 
+  // Applies the 24h rule on top of DB availability for a picked date.
+  function withTimeRule(avail, date) {
+    if (avail) {
+      avail.morning = avail.morning && isSlotBookable(date, 'morning');
+      avail.evening = avail.evening && isSlotBookable(date, 'evening');
+    }
+    return avail;
+  }
+
+  // ─── Cart line-item booking properties ─────────────────────────────
+  var MONTH_INDEX = {};
+  MONTHS.forEach(function(m, i) { MONTH_INDEX[m.toLowerCase()] = i + 1; });
+
+  function propValue(props, name) {
+    if (!props) return null;
+    if (Array.isArray(props)) {
+      for (var i = 0; i < props.length; i++) {
+        if (props[i] && props[i].name === name) return props[i].value;
+      }
+      return null;
+    }
+    return typeof props === 'object' && props[name] != null ? props[name] : null;
+  }
+
+  function parseDisplayDate(v) {
+    if (!v) return null;
+    var iso = String(v).match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+    var dmy = String(v).match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+    if (dmy && MONTH_INDEX[dmy[2].toLowerCase()]) {
+      return dmy[3] + '-' + String(MONTH_INDEX[dmy[2].toLowerCase()]).padStart(2, '0') + '-' + dmy[1].padStart(2, '0');
+    }
+    return null;
+  }
+
+  function parseSlotText(v) {
+    var s = String(v || '').toLowerCase();
+    if (!s) return null;
+    if (s.indexOf('evening') !== -1 || s.indexOf('2:30') !== -1 || s.indexOf('14:30') !== -1 || s.indexOf('pm') !== -1) return 'evening';
+    return 'morning';
+  }
+
+  function readBookingProps(props) {
+    var key = propValue(props, '_bk_slot');
+    return {
+      date: parseDisplayDate(propValue(props, '_bk_date')) || parseDisplayDate(propValue(props, '📅 Date')),
+      slot: (key === 'morning' || key === 'evening') ? key : parseSlotText(propValue(props, '⏰ Slot'))
+    };
+  }
+
+  // Unique products rule, pre-checkout: is the SAME product already in the
+  // cart for the SAME date + slot (e.g. added from another tab)?
+  async function checkCartForConflict(dateStr, slotKey) {
+    try {
+      var resp = await fetch('/cart.js', { cache: 'no-store' });
+      if (!resp.ok) return null;
+      var cart = await resp.json();
+      var items = (cart && cart.items) || [];
+      var targetId = state.shopifyProductId || BK_PRODUCT_ID;
+
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (String(it.product_id) !== String(targetId)) continue;
+        var b = readBookingProps(it.properties);
+        if (b.date === dateStr && b.slot === slotKey) return true;
+      }
+      return false;
+    } catch (_) {
+      return null; // couldn't read cart — don't hard-block, DB trigger still enforces
+    }
+  }
+
+  // ─── Live refresh ────────────────────────────────────────────────
   async function refreshLiveAvailability() {
     await Promise.all([loadFullBlockedDates(), loadFullBookedDates()]);
+    await refreshSelectedDateOnly();
+  }
 
-    if (state.selDate) {
-      state.avail = await checkAvail(fmt(state.selDate));
+  // Lightweight poll: only re-checks the selected date.
+  async function refreshSelectedDateOnly() {
+    if (state.selDate && !state.submitting) {
+      state.avail = withTimeRule(await checkAvail(fmt(state.selDate)), state.selDate);
       if (state.selSlot && state.avail[state.selSlot] === false) {
         state.selSlot = null;
       }
     }
-    render();
+    if (!state.submitting) render();
   }
 
   function startLiveRefresh() {
     if (state.liveRefreshTimer) {
       clearInterval(state.liveRefreshTimer);
     }
+    // Refresh instantly when the user returns to this tab.
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') {
+        refreshLiveAvailability().catch(function() {});
+      }
+    });
+    // Fast poll fallback (2s) in case realtime is unavailable or suspended.
     state.liveRefreshTimer = setInterval(function() {
-      refreshLiveAvailability().catch(function() {
-        // Keep interval alive even if one refresh fails.
-      });
-    }, 45000);
-    // React instantly when the bookings/blocked_slots tables change —
-    // this removes the delay when another tab places an order.
+      if (document.visibilityState === 'visible') {
+        refreshSelectedDateOnly().catch(function() {});
+      }
+    }, 2000);
+    // Instant refresh: the DB bumps availability_ping whenever bookings or
+    // blocked_slots change (no customer data is broadcast).
     try {
       state.rtChannel = sb
         .channel('bk-widget-live-' + Math.random().toString(36).slice(2, 8))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, function() {
-          refreshLiveAvailability().catch(function() {});
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'blocked_slots' }, function() {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'availability_ping' }, function() {
           refreshLiveAvailability().catch(function() {});
         })
         .subscribe();
     } catch (e) {
-      // Realtime not available — the 45s poll still acts as a fallback.
+      // Realtime not available — the 2s poll still acts as a fallback.
     }
-  }
-
-  // ─── Load delivery zones ──────────────────────────────────────────
-  async function loadZones() {
-    var r = await sb.from('delivery_zones')
-      .select('*').eq('is_active', true).order('sort_order');
-    state.zones = r.data || [];
-  }
-
-  function getGovernorates() {
-    var seen = {};
-    var list = [];
-    (state.zones || []).forEach(function(z) {
-      if (!z.governorate) return;
-      if (seen[z.governorate]) return;
-      seen[z.governorate] = true;
-      list.push(z.governorate);
-    });
-    return list;
-  }
-
-  function getZonesForGovernorate(gov) {
-    return (state.zones || []).filter(function(z) {
-      return z.governorate === gov;
-    });
   }
 
   // ─── Render ──────────────────────────────────────────────────────
@@ -621,7 +701,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     if (!root) return;
     root.innerHTML =
       renderCalCard() +
-      renderSlotLabel() +
       (state.showSlots ? renderSlotCard() : '') +
       renderSummary() +
       '<div id="bk-err"></div>';
@@ -631,6 +710,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     syncHiddenInputs();
     syncSummary();
     syncAddToCartState();
+    syncAvailBubble();
   }
 
   // ── Calendar card ─────────────────────────────────────────────────
@@ -642,7 +722,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     var firstDay = new Date(vm.getFullYear(), vm.getMonth(), 1);
     var lastDay = new Date(vm.getFullYear(), vm.getMonth() + 1, 0);
 
-    // Prev/next guards
     var prevFirst = new Date(vm.getFullYear(), vm.getMonth() - 1, 1);
     var nextFirst = new Date(vm.getFullYear(), vm.getMonth() + 1, 1);
     var canPrev = prevFirst >= new Date(minDate.getFullYear(), minDate.getMonth(), 1);
@@ -653,13 +732,11 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '1') + '</div>' +
       '<h4>Select Delivery Date</h4></div>';
 
-    // DOW row
     var grid = '<div class="bk-grid">';
     DOW.forEach(function(d) {
       grid += '<div class="bk-dow">' + d + '</div>';
     });
 
-    // Blank cells before month start
     for (var b = 0; b < firstDay.getDay(); b++) {
       grid += '<div class="bk-day bk-empty"></div>';
     }
@@ -667,18 +744,13 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     for (var d = 1; d <= lastDay.getDate(); d++) {
       var date = new Date(vm.getFullYear(), vm.getMonth(), d);
       var dStr = fmt(date);
-      
-      // Check if date is bookable (not within 24 hours, not past)
-      var bookable = isDateBookable(date);
-      var isBlockedByAdmin = !!state.fullBlockedDates[dStr];
-      var isFullyBooked = !!state.fullBookedDates[dStr];
-      var off = !bookable || isBlockedByAdmin || isFullyBooked;
-      
+
+      var off = !isDateBookable(date) || !!state.fullBlockedDates[dStr] || !!state.fullBookedDates[dStr];
       var isSel = state.selDate && fmt(state.selDate) === dStr;
       var cls = 'bk-day' +
         (off ? ' bk-off' : '') +
         (isSel ? ' bk-sel' : '');
-      
+
       grid += '<div class="' + cls + '" data-d="' + dStr + '">' + d + '</div>';
     }
     grid += '</div>';
@@ -686,9 +758,9 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     return '<div class="bk-card">' + head +
       '<div class="bk-cal-wrap">' +
       '<div class="bk-cal-nav">' +
-      '<button id="bk-prev" ' + (canPrev ? '' : 'disabled') + '>&#8249;</button>' +
+      '<button type="button" id="bk-prev" ' + (canPrev ? '' : 'disabled') + '>&#8249;</button>' +
       '<span class="bk-cal-title">' + MONTHS[vm.getMonth()] + ' ' + vm.getFullYear() + '</span>' +
-      '<button id="bk-next" ' + (canNext ? '' : 'disabled') + '>&#8250;</button>' +
+      '<button type="button" id="bk-next" ' + (canNext ? '' : 'disabled') + '>&#8250;</button>' +
       '</div>' + grid + '</div></div>';
   }
 
@@ -710,6 +782,7 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
         var info = SLOTS[key];
         var avail = state.avail ? state.avail[key] : null;
         var bookedCount = state.avail && state.avail.counts ? state.avail.counts[key] : null;
+        var alreadyBooked = state.avail && state.avail.mine ? !!state.avail.mine[key] : false;
         var tooSoon = state.selDate ? !isSlotBookable(state.selDate, key) : false;
         var isSel = state.selSlot === key;
         var isNa = avail === false || tooSoon;
@@ -717,6 +790,9 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
         if (avail === null) {
           stTxt = 'Checking…';
           stCls = 'bk-st-chk';
+        } else if (alreadyBooked) {
+          stTxt = 'This product is already booked for this slot';
+          stCls = 'bk-st-na';
         } else if (avail && !tooSoon) {
           stTxt = bookedCount !== null ? bookedCount + '/' + MAX_BOOKINGS_PER_SLOT + ' booked' : 'Available';
           stCls = 'bk-st-ok';
@@ -738,53 +814,33 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       });
       body += '</div>';
     }
-    return '<div class="bk-card">' + head + body + '</div>';
-  }
-
-  // Small clickable label shown under the calendar that reveals slots when clicked
-  function renderSlotLabel() {
-    var show = state.showSlots;
-    var disabled = !state.selDate ? ' disabled' : '';
-    var lbl = '<div class="bk-card headless" style="margin-bottom:10px;padding:10px 14px;cursor:pointer;border:1px solid #F0EAF8;background:#FFF">' +
-      '<div style="font-weight:600;font-size:14px;color:var(--mid)">اختر فترة التوصيل</div>' +
-      '<div style="font-size:12px;color:var(--muted);margin-top:6px">' + (show ? '← اختر الآن' : 'انقر لعرض الفترات المتاحة') + '</div>' +
+    return '<div class="bk-card">' + head + body +
+      '<div class="bk-delivery-note">ملاحظة: الفترة المختارة هي فترة التوصيل وليست فترة الخدمة.</div>' +
       '</div>';
-    return '<div id="bk-slot-label"' + disabled + '>' + lbl + '</div>';
   }
 
-  // ── Area card ─────────────────────────────────────────────────────
-  function renderAreaCard() {
-    var done = !!state.selAreaId;
-    var head = '<div class="bk-card-head">' +
-      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '3') + '</div>' +
-      '<h4>Delivery Area</h4></div>';
-
-    if (!state.zones.length) {
-      return '<div class="bk-card">' + head +
-        '<div class="bk-area-wrap"><div class="bk-slots-ph"><span class="bk-spin"></span>Loading areas…</div></div></div>';
+  // Floating availability bubble — pops above the fixed WhatsApp icon once a
+  // date is picked, and hides when a time slot is chosen or the ✕ is clicked
+  function syncAvailBubble() {
+    var show = state.selDate && !state.selSlot && !state.bubbleDismissed;
+    var el = document.getElementById('bk-avail-float');
+    if (!show) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      return;
     }
-
-    var govOpts = '<option value="">— اختر المحافظة —</option>';
-    getGovernorates().forEach(function(g) {
-      govOpts += '<option value="' + g + '"' + (state.selGovName === g ? ' selected' : '') + '>' + g + '</option>';
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'bk-avail-float';
+    el.className = 'bk-avail-float';
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      '<button type="button" class="bk-avail-float-close" aria-label="إغلاق">✕</button>' +
+      '<span>لم تجد الوقت المناسب؟ تواصل معنا عبر الواتساب، وقد نتمكن من توفيره لك.</span>';
+    el.querySelector('.bk-avail-float-close').addEventListener('click', function() {
+      state.bubbleDismissed = true;
+      syncAvailBubble();
     });
-
-    var areaOpts = '<option value="">— اختر المنطقة —</option>';
-    getZonesForGovernorate(state.selGovName).forEach(function(z) {
-      areaOpts += '<option value="' + z.id + '" data-name="' + z.area_name + '" data-price="' + z.price + '"' +
-        (state.selAreaId === z.id ? ' selected' : '') + '>' +
-        z.area_name + ' — ' + parseFloat(z.price).toFixed(3) + ' KD</option>';
-    });
-
-    var fee = state.selPrice ?
-      '<div class="bk-fee show">🚚 Delivery fee: <strong>' + state.selPrice + ' KD</strong></div>' :
-      '<div class="bk-fee" id="bk-fee"></div>';
-
-    return '<div class="bk-card">' + head +
-      '<div class="bk-area-wrap">' +
-      '<select class="bk-area-sel" id="bk-gov-sel">' + govOpts + '</select>' +
-      '<select class="bk-area-sel" id="bk-area-sel"' + (state.selGovName ? '' : ' disabled') + '>' + areaOpts + '</select>' +
-      fee + '</div></div>';
+    document.body.appendChild(el);
   }
 
   // ── Summary ───────────────────────────────────────────────────────
@@ -792,7 +848,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     return '<div id="bk-summary">' +
       '<div class="bk-sum-item"><div class="bk-sum-lbl">Date</div><div class="bk-sum-val" id="bk-sv-date">—</div></div>' +
       '<div class="bk-sum-item"><div class="bk-sum-lbl">Slot</div><div class="bk-sum-val" id="bk-sv-slot">—</div></div>' +
-
       '</div>';
   }
 
@@ -813,28 +868,22 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
       el.addEventListener('click', async function() {
         var parts = el.dataset.d.split('-');
         var selectedDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
-        
-        // Double-check date is bookable (24-hour rule)
+
         if (!isDateBookable(selectedDate)) {
           showErr('This date is not available for booking. Please select a date at least 24 hours from now.');
           return;
         }
-        
+
         state.selDate = selectedDate;
         state.selSlot = null;
         state.avail = null;
-        state.showSlots = false;
+        state.showSlots = true; // reveal morning/evening automatically
         state.checking = true;
+        state.bubbleDismissed = false;
         render();
 
-        // Preload availability for performance but keep slots hidden until user clicks label
         try {
-          var pre = await checkAvail(el.dataset.d);
-          state.avail = pre;
-          if (state.avail) {
-            state.avail.morning = state.avail.morning && isSlotBookable(selectedDate, 'morning');
-            state.avail.evening = state.avail.evening && isSlotBookable(selectedDate, 'evening');
-          }
+          state.avail = withTimeRule(await checkAvail(el.dataset.d), selectedDate);
         } catch (e) {
           state.avail = null;
         }
@@ -842,36 +891,8 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
         render();
       });
     });
-    
-    // Label click to reveal slots (delegated - element may be re-rendered)
-    document.addEventListener('click', async function (ev) {
-      var el = ev.target;
-      var container = el.closest && el.closest('#bk-slot-label');
-      if (!container) return;
-      if (!state.selDate) {
-        showErr('Please pick a date first.');
-        return;
-      }
-      clearErr();
-      state.showSlots = true;
-      // ensure availability is loaded
-      if (!state.avail) {
-        state.checking = true;
-        render();
-        try {
-          state.avail = await checkAvail(fmt(state.selDate));
-          if (state.avail) {
-            state.avail.morning = state.avail.morning && isSlotBookable(state.selDate, 'morning');
-            state.avail.evening = state.avail.evening && isSlotBookable(state.selDate, 'evening');
-          }
-        } catch (e) {
-          state.avail = null;
-        }
-        state.checking = false;
-      }
-      render();
-    });
   }
+
   function bindSlots() {
     document.querySelectorAll('.bk-slot:not(.bk-slot-na)').forEach(function(el) {
       el.addEventListener('click', function() {
@@ -882,41 +903,13 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     });
   }
 
-  function bindArea() {
-    var govSel = document.getElementById('bk-gov-sel');
-    var areaSel = document.getElementById('bk-area-sel');
-    if (govSel) {
-      govSel.addEventListener('change', function() {
-        state.selGovName = govSel.value || null;
-        state.selAreaId = state.selAreaName = state.selPrice = null;
-        clearErr();
-        render();
-      });
-    }
-    if (areaSel) {
-      areaSel.addEventListener('change', function() {
-        var opt = areaSel.selectedOptions[0];
-        if (opt && opt.value) {
-          state.selAreaId = opt.value;
-          state.selAreaName = opt.dataset.name;
-          state.selPrice = parseFloat(opt.dataset.price).toFixed(3);
-        } else {
-          state.selAreaId = state.selAreaName = state.selPrice = null;
-        }
-        clearErr();
-        render();
-      });
-    }
-  }
-
   // ─── Sync hidden inputs & summary ─────────────────────────────────
   function syncHiddenInputs() {
     var dv = document.getElementById('bk-date-val');
     var sv = document.getElementById('bk-slot-val');
-    var gv = document.getElementById('bk-gov-val');
-    var av = document.getElementById('bk-area-val');
-    var pv = document.getElementById('bk-price-val');
-    
+    var di = document.getElementById('bk-date-iso');
+    var sk = document.getElementById('bk-slot-key');
+
     if (dv) dv.value = state.selDate ?
       state.selDate.toLocaleDateString('en-GB', {
         weekday: 'long',
@@ -925,24 +918,17 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
         year: 'numeric'
       }) : '';
     if (sv) sv.value = state.selSlot ? SLOTS[state.selSlot].label + ' (' + SLOTS[state.selSlot].time + ')' : '';
-    // Area/governorate must be selected at checkout level — clear them here
-    if (gv) gv.value = '';
-    if (av) av.value = '';
-    if (pv) pv.value = '';
-    syncAddToCartState();
+    if (di) di.value = state.selDate ? fmt(state.selDate) : '';
+    if (sk) sk.value = state.selSlot || '';
   }
 
   function syncSummary() {
     var el = document.getElementById('bk-summary');
     if (!el) return;
-    var any = state.selDate || state.selSlot || state.selGovName || state.selAreaId;
-    if (any) {
+    if (state.selDate || state.selSlot) {
       el.classList.add('show');
       var sd = document.getElementById('bk-sv-date');
       var ss = document.getElementById('bk-sv-slot');
-      var sg = document.getElementById('bk-sv-gov');
-      var sa = document.getElementById('bk-sv-area');
-      var sp = document.getElementById('bk-sv-price');
       if (sd) sd.textContent = state.selDate ?
         state.selDate.toLocaleDateString('en-GB', {
           day: 'numeric',
@@ -950,9 +936,6 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
           year: 'numeric'
         }) : '—';
       if (ss) ss.textContent = state.selSlot ? SLOTS[state.selSlot].label : '—';
-      if (sg) sg.textContent = state.selGovName || '—';
-      if (sa) sa.textContent = state.selAreaName || '—';
-      if (sp) sp.textContent = state.selPrice ? state.selPrice + ' KD' : '—';
     } else {
       el.classList.remove('show');
     }
@@ -964,68 +947,93 @@ var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
     if (el) {
       el.textContent = '⚠ ' + msg;
       el.classList.add('show');
+      el.classList.remove('bk-flash');
+      void el.offsetWidth; // restart the flash animation
+      el.classList.add('bk-flash');
     }
   }
 
   function clearErr() {
     var el = document.getElementById('bk-err');
-    if (el) el.classList.remove('show');
+    if (el) {
+      el.classList.remove('show');
+      el.classList.remove('bk-flash');
+    }
   }
-// ─── Button state control ────────────────────────────────────────
-function hasBookingValues() {
-  const date = document.getElementById('bk-date-val')?.value;
-  const slot = document.getElementById('bk-slot-val')?.value;
 
-  return !!(date && date.trim() !== '' && slot && slot.trim() !== '');
-}
+  // ─── Button state control ────────────────────────────────────────
+  function getForm() {
+    var root = document.getElementById('bk-widget');
+    return root && root.closest ? root.closest('form') : null;
+  }
 
-function syncAddToCartState() {
-  const btn = document.querySelector('form[action*="/cart/add"] [type="submit"]');
-  if (!btn) return;
+  function syncAddToCartState() {
+    var form = getForm();
+    var btn = form && form.querySelector('[type="submit"]');
+    if (!btn) return;
+    var valid = !!(state.selDate && state.selSlot) && !state.submitting;
+    btn.disabled = !valid;
+    btn.classList.toggle('is-disabled', !valid);
+  }
 
-  const valid = hasBookingValues();
+  // ─── Add to cart ─────────────────────────────────────────────────
+  // The theme adds to cart from its own submit listener on `document`.
+  // This listener runs earlier (window, capture phase), stops the theme's
+  // handler, checks availability FIRST, and only then adds the item.
+  window.addEventListener('submit', function(e) {
+    var form = getForm();
+    if (!form || e.target !== form) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    addToCart(form);
+  }, true);
 
-  btn.disabled = !valid;
-  btn.classList.toggle('is-disabled', !valid);
-}
-  // ─── Intercept Add-to-Cart ────────────────────────────────────────
-  function hookCart() {
-    var form = document.querySelector('form[action*="/cart/add"]');
-    if (!form) return;
-    var submitting = false;
-    form.addEventListener('submit', async function(e) {
-      if (submitting) return;
+  async function addToCart(form) {
+    if (state.submitting) return;
 
-      e.preventDefault();
-      e.stopPropagation();
+    if (!state.selDate) {
+      showErr('Please select a delivery date.');
+      return;
+    }
+    if (!state.selSlot) {
+      showErr('Please select a time slot.');
+      return;
+    }
+    if (!isDateBookable(state.selDate) || !isSlotBookable(state.selDate, state.selSlot)) {
+      showErr('This date is no longer available for booking. Please choose another date.');
+      return;
+    }
 
-      if (!state.selDate) {
-        showErr('Please select a delivery date.');
-        return;
+    clearErr();
+    syncHiddenInputs();
+    var dateStr = fmt(state.selDate);
+    var slotKey = state.selSlot;
+
+    state.submitting = true;
+    state.checking = true;
+    render();
+
+    try {
+      var avail;
+      try {
+        avail = withTimeRule(await checkAvail(dateStr), state.selDate);
+      } catch (_) {
+        avail = null;
       }
-      if (!state.selSlot) {
-        showErr('Please select a time slot.');
-        return;
-      }
-      // Delivery area selection is performed at checkout; do not require it here.
-
-      if (!isDateBookable(state.selDate) || !isSlotBookable(state.selDate, state.selSlot)) {
-        showErr('This date is no longer available for booking. Please choose another date.');
-        return;
-      }
-
-      clearErr();
-      syncHiddenInputs(); // ensure latest values before submit
-
-      state.checking = true;
-      render();
-
-      state.avail = await checkAvail(fmt(state.selDate));
+      state.avail = avail;
       state.checking = false;
-      render();
 
-      if (!state.avail || state.avail[state.selSlot] === false) {
-        if (state.avail && state.avail.counts && state.avail.counts[state.selSlot] >= MAX_BOOKINGS_PER_SLOT) {
+      if (!avail) {
+        render();
+        showErr('Could not check availability. Please try again.');
+        return;
+      }
+      if (avail[slotKey] === false) {
+        state.selSlot = null;
+        render();
+        if (avail.mine && avail.mine[slotKey]) {
+          showErr('This product is already booked for this slot. Please choose another time.');
+        } else if (avail.counts && avail.counts[slotKey] >= MAX_BOOKINGS_PER_SLOT) {
           showErr('That slot has reached the daily capacity of 2 bookings. Please choose another time.');
         } else {
           showErr('That slot is already booked for this product on the selected date. Please choose another time.');
@@ -1033,27 +1041,47 @@ function syncAddToCartState() {
         return;
       }
 
-      submitting = true;
-      {% comment %} form.submit(); {% endcomment %}
-         setTimeout(() => {
-        window.location.href = '/cart';
-  }, 1000);
+      if (await checkCartForConflict(dateStr, slotKey) === true) {
+        render();
+        showErr('This product is already in your cart for this date and slot. Please choose another time.');
+        return;
+      }
 
-    }, true);
+      render(); // keeps hidden inputs in sync before reading the form
+      var formData = new FormData(form);
+      // A product can hold a slot only once, so one unit per booking.
+      formData.set('quantity', '1');
+
+      var resp = await fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: formData
+      });
+      var json = await resp.json().catch(function() { return {}; });
+      if (!resp.ok || json.status) {
+        showErr(json.description || json.message || 'Could not add to cart. Please try again.');
+        return;
+      }
+
+      window.location.href = '/cart';
+    } finally {
+      state.submitting = false;
+      state.checking = false;
+      syncAddToCartState();
+    }
   }
 
   // ─── Init ────────────────────────────────────────────────────────
   async function init() {
     var minDate = getMinBookableDate();
-    // Set view month to the minimum bookable date's month
     state.viewMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
     render();
-    await resolveProductScope();
-    await Promise.all([loadZones(), loadFullBlockedDates(), loadFullBookedDates()]);
+    try {
+      await resolveProductScope();
+    } catch (_) { /* fall back to Shopify id */ }
+    await Promise.all([loadFullBlockedDates(), loadFullBookedDates()]).catch(function() {});
     render();
-    hookCart();
     startLiveRefresh();
-    syncAddToCartState();
   }
 
   if (document.readyState === 'loading') {
@@ -1063,26 +1091,4 @@ function syncAddToCartState() {
   }
 
 })();
-function hasBookingValues() {
-  const date = document.getElementById('bk-date-val')?.value;
-  const slot = document.getElementById('bk-slot-val')?.value;
-
-  return !!(date && date.trim() !== '' && slot && slot.trim() !== '');
-}
-function syncAddToCartState() {
-  const btn = document.querySelector('form[action*="/cart/add"] [type="submit"]');
-  if (!btn) return;
-
-  const valid = hasBookingValues();
-
-  btn.disabled = !valid;
-
-  if (!valid) {
-    btn.classList.add('is-disabled');
-  } else {
-    btn.classList.remove('is-disabled');
-  }
-}// whenever date or slot changes
-syncAddToCartState();document.addEventListener('DOMContentLoaded', syncAddToCartState);
-
 </script>

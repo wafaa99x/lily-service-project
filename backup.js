@@ -72,6 +72,34 @@ const DELIVERY_DATA = {
   }
 };
 
+// Governorate keys → names saved on the order (match delivery_zones.governorate)
+const GOV_NAMES = {
+  capital: "محافظة العاصمة",
+  ahmadi: "محافظة الأحمدي",
+  jahra: "محافظة الجهراء",
+  farwaniya: "محافظة الفروانية",
+  hawalli: "محافظة حولي",
+  mubarak: "محافظة مبارك الكبير"
+};
+
+// Saves the chosen area on the cart so it comes through on the order
+// (order.note_attributes) and the booking webhook can store it.
+async function saveDeliveryAttributes(gov, area){
+  if(!gov || !area) return;
+  try {
+    await fetch('/cart/update.js',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({attributes:{
+        "Delivery Governorate": GOV_NAMES[gov] || gov,
+        "Delivery Area": area
+      }})
+    });
+  } catch(err) {
+    console.warn("Could not save delivery area on cart", err);
+  }
+}
+
 // ======================
 // INIT
 // ======================
@@ -86,6 +114,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (hasDelivery) {
     populateFromStorage();
+    // Carts created before this fix: make sure the area is on the cart too.
+    if (!cart.attributes || !cart.attributes["Delivery Area"]) {
+      saveDeliveryAttributes(localStorage.getItem("tempGov"), localStorage.getItem("tempArea"));
+    }
   }
 
 });
@@ -110,18 +142,21 @@ document.addEventListener("change", async function(e){
   // AREA
   if(e.target.id === "area"){
 
-    const gov = document.getElementById("gov").value;
+    const govEl = document.getElementById("gov");
+    const gov = govEl ? govEl.value : "";
     const area = e.target.value;
 
-    if(!gov || !area) return;
+    if(!gov || !area || !DELIVERY_DATA[gov]) return;
+
+    const price = DELIVERY_DATA[gov][area];
+    const variantId = DELIVERY_VARIANTS[price];
+    if(!variantId) return;
 
     localStorage.setItem("tempGov", gov);
     localStorage.setItem("tempArea", area);
 
-    const price = DELIVERY_DATA[gov][area];
-    const variantId = DELIVERY_VARIANTS[price];
-
     await forceSingleDelivery(variantId);
+    await saveDeliveryAttributes(gov, area);
   }
 
 });
@@ -131,6 +166,7 @@ document.addEventListener("change", async function(e){
 // ======================
 function populateAreas(gov){
   const areaEl = document.getElementById("area");
+  if(!areaEl) return;
   areaEl.innerHTML = '<option value="">Select Area</option>';
 
   if(!DELIVERY_DATA[gov]) return;
@@ -163,11 +199,13 @@ document.addEventListener("click", function(e){
   localStorage.setItem("selectedGov", gov);
   localStorage.setItem("selectedArea", area);
 
+  saveDeliveryAttributes(gov, area);
   updateUI();
 
 });
 {% comment %} LOADER FOR CONFIRM BUTTON {% endcomment %}
-document.getElementById("confirm-area").addEventListener("click", function () {
+const confirmAreaBtn = document.getElementById("confirm-area");
+if (confirmAreaBtn) confirmAreaBtn.addEventListener("click", function () {
 
   const btn = this;
 
@@ -179,10 +217,7 @@ document.getElementById("confirm-area").addEventListener("click", function () {
   // optional: add spinner style hook
   btn.classList.add("loading");
 
-  // 🔥 2. your logic here (example)
-  // save area / cart logic etc...
-
-  // 🔥 3. reload after delay
+  // 🔥 2. reload after delay (area + attributes are saved by the click handler above)
   setTimeout(() => {
     location.reload();
   }, 3000);
@@ -251,10 +286,10 @@ async function updateUI(){
     return;
   }
 
-  document.getElementById("delivery-area-name").innerText =
-    "Selected Area: " + area;
-
-  document.getElementById("delivery-fee-line").innerText =
+  const areaNameEl = document.getElementById("delivery-area-name");
+  const feeLineEl = document.getElementById("delivery-fee-line");
+  if (areaNameEl) areaNameEl.innerText = "Selected Area: " + area;
+  if (feeLineEl) feeLineEl.innerText =
     "Delivery Fee: " + (item.final_line_price/100).toFixed(2) + " KWD";
 
   box.style.display = "block";
@@ -268,13 +303,15 @@ function populateFromStorage(){
   const gov = localStorage.getItem("selectedGov");
   const area = localStorage.getItem("selectedArea");
 
-  if(!gov) return;
+  const govEl = document.getElementById("gov");
+  if(!gov || !govEl) return;
 
-  document.getElementById("gov").value = gov;
+  govEl.value = gov;
   populateAreas(gov);
 
   setTimeout(()=>{
-    document.getElementById("area").value = area || "";
+    const areaEl = document.getElementById("area");
+    if (areaEl) areaEl.value = area || "";
   },150);
 }
   updateUI();

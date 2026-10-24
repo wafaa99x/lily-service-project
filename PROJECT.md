@@ -22,11 +22,11 @@ A booking system for Kuwait-based delivery services that integrates with Shopify
 
 ## 1. What the project does
 
-Customers buy a delivery slot (morning or evening) on a Shopify product page. Each slot is **capped at 3 bookings per day** across all products. The admin sees everything in a single dashboard.
+Customers buy a delivery slot (morning or evening) on a Shopify product page. Each slot is **capped at 2 bookings per day** across all products. The admin sees everything in a single dashboard.
 
 **Three hard rules enforced at the database:**
 - Bookings must be ≥24 hours in the future
-- No more than 3 bookings per (date, slot) across all products
+- No more than 2 bookings per (date, slot) across all products
 - Linked product pairs (e.g. Dafwa ↔ Naseem) block each other on the same slot
 
 ---
@@ -317,8 +317,8 @@ npx supabase functions deploy <name> [--no-verify-jwt]
    - On submit, re-checks capacity and shows friendly error if full
 
 3. **Admin panel** (`admin-panel.html`)
-   - Dashboard "Today's Capacity" card shows `M/3 · E/3` with color-coded status
-   - Today's Bookings subtitle explicitly says `max 3 morning + 3 evening`
+   - Dashboard "Today's Capacity" card shows `M/2 · E/2` with color-coded status
+   - Today's Bookings subtitle explicitly says `max 2 morning + 2 evening`
 
 ### Edge cases handled
 - **Linked products** (Dafwa/Naseem) — DB trigger cross-checks the linked product's bookings
@@ -356,7 +356,7 @@ npx supabase functions deploy <name> [--no-verify-jwt]
 
 ### "Order was paid but no booking appeared"
 1. Same check pattern, look for `[order-webhook]`
-2. If you see `rejected: "This slot has reached the daily capacity of 3 bookings"` — capacity full, expected
+2. If you see `rejected: "This slot has reached the daily capacity of 2 bookings"` — capacity full, expected
 3. If you see `skipped-unpaid` — the `orders/create` webhook arrived before the order was paid; wait for `orders/paid` (which fires automatically when the order is captured)
 
 ### "Webhook returns 401"

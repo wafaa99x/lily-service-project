@@ -4,12 +4,24 @@ import express from 'express';
 
 const app = express();
 
+// Render sits in front of the app as one proxy hop. Trusting exactly one hop
+// makes req.ip the real client IP, so the login lockout can't be bypassed by
+// sending a fake X-Forwarded-For header.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
+
 app.use(
   express.json({
     verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); },
   })
 );
-app.use(express.static('.'));
+// Serve only the public pages. Serving '.' exposed server.js, backup.js,
+// the SQL schema and the docs to anyone.
+const PUBLIC_FILES = new Set(['index.html', 'admin-panel.html']);
+app.get(['/', '/:file'], (req, res, next) => {
+	const file = req.params.file || 'index.html';
+	if (!PUBLIC_FILES.has(file)) return next();
+	res.sendFile(file, { root: process.cwd() });
+});
 
 const TOKEN_TTL_SECONDS = 2 * 60 * 60;
 const LOGIN_WINDOW_MS = Number(process.env.LOGIN_WINDOW_MS || 15 * 60 * 1000);
@@ -78,7 +90,7 @@ function verifyJwt(token, secret) {
 		.replace(/=/g, '')
 		.replace(/\+/g, '-')
 		.replace(/\//g, '_');
-	if (!crypto.timingSafeEqual(Buffer.from(signaturePart), Buffer.from(expected))) {
+	if (!safeEqualStrings(signaturePart, expected)) {
 		throw new Error('Invalid token signature');
 	}
 	const payload = JSON.parse(base64UrlDecode(payloadPart));
@@ -94,9 +106,13 @@ function getAuthToken(req) {
 }
 
 function getClientIp(req) {
-	const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-	if (forwarded) return forwarded;
 	return String(req.ip || req.socket?.remoteAddress || 'unknown');
+}
+
+function safeEqualStrings(a, b) {
+	const ha = crypto.createHash('sha256').update(String(a)).digest();
+	const hb = crypto.createHash('sha256').update(String(b)).digest();
+	return crypto.timingSafeEqual(ha, hb);
 }
 
 function getLoginState(ip) {
@@ -313,7 +329,7 @@ app.post('/api/auth/login', (req, res) => {
 		const adminPassword = getEnvOrThrow('ADMIN_PASSWORD');
 		const jwtSecret = getEnvOrThrow('ADMIN_JWT_SECRET');
 		const provided = String(req.body?.password || '');
-		if (!provided || provided !== adminPassword) {
+		if (!provided || !safeEqualStrings(provided, adminPassword)) {
 			const state = recordFailedLogin(ip);
 			if (state.lockUntil > Date.now()) {
 				const lockRemainingSec = Math.ceil((state.lockUntil - Date.now()) / 1000);
