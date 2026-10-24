@@ -284,6 +284,9 @@ async function executeDbQuery(query) {
 		method = 'POST';
 		headers.Prefer = 'return=representation';
 		body = JSON.stringify(query?.values ?? null);
+	} else if ((op === 'update' || op === 'delete') && !(query?.filters || []).length) {
+		// Never change or delete a whole table by mistake
+		throw new Error(`${op} needs at least one filter`);
 	} else if (op === 'update') {
 		method = 'PATCH';
 		headers.Prefer = 'return=representation';
