@@ -3,293 +3,313 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Booking Admin Panel</title>
+<title>Lily Service — Booking Admin</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display&display=swap');
 
-/* ======== BASE ======== */
+/* ======== LILY SERVICE — ADMIN THEME (matches the store + booking calendar) ======== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --sidebar-bg: #0F1623;
-  --sidebar-border: #1E2A3A;
-  --accent: #F4A62A;
-  --accent-dark: #C8831A;
-  --bg: #F0F4F8;
-  --surface: #FFFFFF;
-  --surface2: #F7F9FC;
-  --text: #1E293B;
-  --text-muted: #64748B;
-  --border: #E2E8F0;
-  --green: #16A34A;
-  --red: #DC2626;
-  --radius: 12px;
+  --plum:        #241C2D;   /* sidebar, headings */
+  --plum-2:      #33283F;
+  --plum-line:   #3B2F48;
+  --accent:      #8F6BA5;   /* store purple */
+  --accent-dark: #6F4F86;
+  --accent-soft: #F6F1FA;
+  --accent-line: #E4D9EC;
+  --bg:          #FAF8FC;
+  --surface:     #FFFFFF;
+  --surface2:    #FBF9FD;
+  --text:        #241C2D;
+  --text-2:      #51405F;
+  --text-muted:  #7E738A;
+  --border:      #ECE5F2;
+  --green:       #2F7A59;
+  --green-soft:  #EEF7F2;
+  --red:         #B42318;
+  --red-soft:    #FFF4F2;
+  --red-line:    #F5C6C2;
+  --amber:       #9A5B13;
+  --amber-soft:  #FDF6EC;
+  --radius:      12px;
+  --shadow:      0 1px 2px rgba(36,28,45,.04), 0 4px 16px rgba(36,28,45,.05);
+  --sidebar-bg:  var(--plum);
+  --sidebar-border: var(--plum-line);
 }
+html { -webkit-font-smoothing: antialiased; }
 body {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
 }
+::selection { background: var(--accent-line); }
 
-/* ======== LOGIN SCREEN ======== */
+/* ======== LOGIN ======== */
 #login-screen {
   min-height: 100vh;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #0F1623 0%, #1A2A3F 100%);
+  padding: 24px;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(143,107,165,.35), transparent 60%),
+    linear-gradient(160deg, #241C2D 0%, #3A2B48 100%);
 }
 .login-card {
-  background: #fff; border-radius: 20px;
-  padding: 48px 40px; width: 100%; max-width: 420px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  background: #fff; border-radius: 18px;
+  padding: 44px 38px; width: 100%; max-width: 400px;
+  box-shadow: 0 24px 60px rgba(20,12,28,.35);
 }
-.login-logo { text-align: center; margin-bottom: 32px; }
-.login-logo .lmark { font-size: 36px; }
-.login-logo h1 { font-size: 22px; font-weight: 700; color: #0F1623; margin-top: 10px; }
-.login-logo p  { font-size: 13px; color: #64748B; margin-top: 4px; }
-.login-label  { font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 6px; display: block; letter-spacing: 0.5px; text-transform: uppercase; }
+.login-logo { text-align: center; margin-bottom: 30px; }
+.login-logo .lmark {
+  width: 52px; height: 52px; margin: 0 auto;
+  border-radius: 14px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+  font-family: 'DM Serif Display', serif; font-size: 26px;
+}
+.login-logo h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 26px; color: var(--plum); margin-top: 14px; }
+.login-logo p  { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.login-label  { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 6px; display: block; }
 .login-input  {
-  width: 100%; padding: 12px 16px; border-radius: 10px;
-  border: 1.5px solid #E2E8F0; font-size: 14px;
-  font-family: inherit; margin-bottom: 20px;
-  transition: border-color 0.15s;
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  border: 1.5px solid var(--border); font-size: 14px;
+  font-family: inherit; margin-bottom: 18px;
+  transition: border-color .15s, box-shadow .15s;
 }
-.login-input:focus { outline: none; border-color: #F4A62A; }
+.login-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(143,107,165,.15); }
 .login-btn {
   width: 100%; padding: 13px;
-  background: #0F1623; color: #fff;
+  background: var(--plum); color: #fff;
   border: none; border-radius: 10px;
   font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: background 0.2s;
+  cursor: pointer; transition: background .2s;
   font-family: inherit;
 }
-.login-btn:hover { background: #1A2A3F; }
-.login-error {
-  color: #DC2626; font-size: 13px;
-  text-align: center; margin-top: 14px; display: none;
-}
+.login-btn:hover { background: var(--accent-dark); }
+.login-error { color: var(--red); font-size: 13px; text-align: center; margin-top: 14px; display: none; }
 
-/* ======== APP LAYOUT ======== */
+/* ======== LAYOUT ======== */
 #app { display: none; min-height: 100vh; }
 .app-layout { display: flex; }
 
 /* ======== SIDEBAR ======== */
 .sidebar {
-  width: 240px; min-height: 100vh;
+  width: 248px; min-height: 100vh;
   background: var(--sidebar-bg);
-  border-right: 1px solid var(--sidebar-border);
   display: flex; flex-direction: column;
   position: fixed; top: 0; left: 0; bottom: 0;
   z-index: 100;
 }
-.sidebar-brand {
-  padding: 22px 20px 18px;
-  border-bottom: 1px solid var(--sidebar-border);
-}
+.sidebar-brand { padding: 24px 22px 20px; border-bottom: 1px solid var(--sidebar-border); }
 .sidebar-brand .brand-name {
-  font-size: 15px; font-weight: 700; color: #fff;
-  letter-spacing: 0.3px;
+  font-family: 'DM Serif Display', serif; font-weight: 400;
+  font-size: 21px; color: #fff; letter-spacing: .2px;
 }
-.sidebar-brand .brand-sub {
-  font-size: 11px; color: #64748B; margin-top: 2px;
-}
-.sidebar-nav { padding: 16px 12px; flex: 1; }
+.sidebar-brand .brand-sub { font-size: 11.5px; color: #A897B6; margin-top: 2px; letter-spacing: .3px; }
+.sidebar-nav { padding: 18px 12px; flex: 1; }
 .nav-section-label {
-  font-size: 10px; font-weight: 700; color: #3A4F6A;
-  letter-spacing: 1.2px; text-transform: uppercase;
-  padding: 0 8px 8px;
+  font-size: 10.5px; font-weight: 700; color: #8C7B9B;
+  letter-spacing: 1.1px; text-transform: uppercase;
+  padding: 0 10px 8px;
 }
 .nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 8px;
-  cursor: pointer; transition: all 0.15s;
-  color: #94A3B8; font-size: 13.5px; font-weight: 500;
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 9px;
+  cursor: pointer; transition: background .15s, color .15s;
+  color: #C9BDD3; font-size: 13.5px; font-weight: 500;
   margin-bottom: 2px;
 }
-.nav-item:hover { background: #1E2A3A; color: #CBD5E1; }
-.nav-item.active { background: rgba(244,166,42,0.15); color: #F4A62A; }
-.nav-item .nav-icon { font-size: 16px; flex-shrink: 0; }
-.sidebar-footer {
-  padding: 14px 20px;
-  border-top: 1px solid var(--sidebar-border);
-}
+.nav-item:hover { background: var(--plum-2); color: #fff; }
+.nav-item.active { background: rgba(143,107,165,.22); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+.nav-item .nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; opacity: .9; }
+.nav-item .nav-icon svg { width: 18px; height: 18px; }
+.sidebar .divider { background: var(--sidebar-border); }
+.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--sidebar-border); }
 .logout-btn {
-  background: none; border: 1px solid #2A3A50;
-  color: #64748B; padding: 8px 16px;
-  border-radius: 8px; cursor: pointer;
-  font-size: 12px; font-family: inherit;
-  transition: all 0.15s; width: 100%;
+  background: none; border: 1px solid var(--plum-line);
+  color: #C9BDD3; padding: 9px 16px;
+  border-radius: 9px; cursor: pointer;
+  font-size: 12.5px; font-family: inherit; font-weight: 500;
+  transition: all .15s; width: 100%;
 }
-.logout-btn:hover { border-color: #DC2626; color: #DC2626; }
+.logout-btn:hover { border-color: #E29A92; color: #fff; background: rgba(180,35,24,.25); }
 
-/* ======== MAIN CONTENT ======== */
-.main-content {
-  margin-left: 240px; flex: 1; padding: 30px;
-}
+/* ======== MAIN ======== */
+.main-content { margin-left: 248px; flex: 1; padding: 28px 34px 48px; max-width: 1400px; }
 .page { display: none; }
-.page.active { display: block; }
+.page.active { display: block; animation: pageIn .2s ease; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 .page-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 24px;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  margin-bottom: 22px; flex-wrap: wrap;
 }
-.page-title { font-size: 22px; font-weight: 700; }
-.page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.page-title { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; color: var(--plum); line-height: 1.15; }
+.page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
 /* ======== CARDS ======== */
 .card {
   background: var(--surface); border-radius: var(--radius);
   border: 1px solid var(--border);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow);
 }
 .card-header {
-  padding: 16px 20px;
+  padding: 15px 20px;
   border-bottom: 1px solid var(--border);
-  font-size: 14px; font-weight: 600;
+  font-size: 14px; font-weight: 600; color: var(--plum);
   display: flex; align-items: center; gap: 8px;
 }
 .card-body { padding: 20px; }
 
-/* ======== STATS ROW ======== */
-.stats-row {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  gap: 16px; margin-bottom: 24px;
-}
+/* ======== STATS ======== */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
 .stat-card {
   background: var(--surface); border-radius: var(--radius);
   border: 1px solid var(--border); padding: 18px 20px;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
 }
-.stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.6px; text-transform: uppercase; }
-.stat-value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.stat-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent-line);
+}
+.stat-label { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .7px; text-transform: uppercase; }
+.stat-value { font-size: 30px; font-weight: 700; margin-top: 6px; color: var(--plum); letter-spacing: -.5px; }
 .stat-sub   { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
 /* ======== TABLE ======== */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 thead th {
-  text-align: left; padding: 10px 14px;
+  text-align: left; padding: 11px 14px;
   background: var(--surface2); font-weight: 600; font-size: 11px;
-  letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
 }
-tbody td {
-  padding: 12px 14px; border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
+tbody td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface2); }
 
 /* ======== BADGES ======== */
 .badge {
-  display: inline-flex; align-items: center;
-  padding: 3px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
 }
-.badge-morning { background: #FFF7ED; color: #C2410C; }
-.badge-evening { background: #EFF6FF; color: #1D4ED8; }
-.badge-blocked { background: #FEF2F2; color: #DC2626; }
-.badge-active  { background: #F0FDF4; color: #16A34A; }
+.badge-morning { background: var(--amber-soft); color: var(--amber); }
+.badge-evening { background: var(--accent-soft); color: var(--accent-dark); }
+.badge-blocked { background: var(--red-soft); color: var(--red); }
+.badge-active  { background: var(--green-soft); color: var(--green); }
 
 /* ======== FORMS ======== */
 .form-row { display: grid; gap: 14px; margin-bottom: 14px; }
 .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
 .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-label { font-size: 12px; font-weight: 600; color: #475569; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .form-input, .form-select {
-  padding: 10px 12px; border-radius: 8px;
+  padding: 10px 12px; border-radius: 9px;
   border: 1.5px solid var(--border); font-size: 13.5px;
-  font-family: inherit; background: #fff;
-  transition: border-color 0.15s;
+  font-family: inherit; background: #fff; color: var(--text);
+  transition: border-color .15s, box-shadow .15s;
 }
-.form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+.form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(143,107,165,.14); }
+.form-input[readonly] { background: var(--surface2); color: var(--text-muted); }
 
 /* ======== BUTTONS ======== */
 .btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 9px 18px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px; border-radius: 9px;
   font-size: 13px; font-weight: 600; cursor: pointer;
-  border: none; font-family: inherit; transition: all 0.15s;
+  border: 1.5px solid transparent; font-family: inherit; transition: all .15s;
+  white-space: nowrap;
 }
-.btn-primary { background: #0F1623; color: #fff; }
-.btn-primary:hover { background: #1A2A3F; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn-primary { background: var(--plum); color: #fff; }
+.btn-primary:hover { background: var(--plum-2); }
 .btn-accent  { background: var(--accent); color: #fff; }
 .btn-accent:hover  { background: var(--accent-dark); }
-.btn-danger  { background: #DC2626; color: #fff; }
-.btn-danger:hover  { background: #B91C1C; }
-.btn-outline { background: transparent; color: var(--text-muted); border: 1.5px solid var(--border); }
-.btn-outline:hover { border-color: #94A3B8; color: var(--text); }
-.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+.btn-danger  { background: var(--red); color: #fff; }
+.btn-danger:hover  { background: #93271B; }
+.btn-outline { background: #fff; color: var(--text-2); border-color: var(--border); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent-dark); }
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
 
 /* ======== ALERTS ======== */
-.alert {
-  padding: 12px 16px; border-radius: 10px;
-  font-size: 13px; margin-bottom: 16px; display: none;
-}
+.alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; display: none; }
 .alert.visible { display: block; }
-.alert-success { background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; }
-.alert-error   { background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; }
+.alert-success { background: var(--green-soft); border: 1px solid #CFE6DA; color: var(--green); }
+.alert-error   { background: var(--red-soft); border: 1px solid var(--red-line); color: var(--red); }
 
-/* ======== DIVIDER ======== */
-.divider { height: 1px; background: var(--border); margin: 20px 0; }
-
-/* ======== LOADING ======== */
-.loading-row td {
-  text-align: center; padding: 30px;
-  color: var(--text-muted); font-size: 13px;
+/* ======== PAID-BUT-NOT-BOOKED PANEL ======== */
+.attention {
+  display: none; margin-bottom: 22px;
+  background: #fff; border: 1px solid var(--red-line); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden;
 }
+.attention-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 16px 20px; background: var(--red-soft); border-bottom: 1px solid var(--red-line);
+}
+.attention-icon {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; background: var(--red); color: #fff; font-weight: 700; font-size: 15px;
+}
+.attention-title { font-weight: 700; color: var(--red); font-size: 14.5px; }
+.attention-sub { font-size: 12.5px; color: #7A1F14; margin-top: 2px; }
+.attention-list { list-style: none; }
+.attention-item {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  padding: 13px 20px; border-bottom: 1px solid var(--border);
+}
+.attention-item:last-child { border-bottom: none; }
+.attention-main { min-width: 0; }
+.attention-line { font-size: 13.5px; color: var(--text); }
+.attention-line strong { color: var(--plum); }
+.attention-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.attention-reason { font-size: 12px; color: var(--red); margin-top: 3px; }
+.attention-actions { display: flex; gap: 8px; }
+
+/* ======== MISC ======== */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.loading-row td { text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px; }
 .spinner {
   display: inline-block; width: 16px; height: 16px;
-  border: 2px solid var(--border); border-top-color: var(--accent);
-  border-radius: 50%; animation: spin 0.8s linear infinite;
+  border: 2px solid var(--accent-line); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite;
   vertical-align: middle; margin-right: 6px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .sync-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #fff;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  margin-bottom: 16px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px; border-radius: 999px;
+  border: 1px solid var(--border); background: #fff;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  box-shadow: var(--shadow); margin-bottom: 16px;
 }
-
-.sync-meta {
-  font-size: 11px;
-  color: #64748B;
-  margin: -10px 0 14px 6px;
-}
-
-.sync-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #94A3B8;
-}
-
-.sync-pill.live .sync-dot {
-  background: #16A34A;
-  box-shadow: 0 0 0 0 rgba(22,163,74,.45);
-  animation: syncPulse 1.8s infinite;
-}
-
+.sync-meta { font-size: 11.5px; color: var(--text-muted); margin: -10px 0 16px 6px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #B5A9C0; }
+.sync-pill.live { color: var(--green); }
+.sync-pill.live .sync-dot { background: var(--green); box-shadow: 0 0 0 0 rgba(47,122,89,.45); animation: syncPulse 1.8s infinite; }
 @keyframes syncPulse {
-  70% { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
-  100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+  70% { box-shadow: 0 0 0 8px rgba(47,122,89,0); }
+  100% { box-shadow: 0 0 0 0 rgba(47,122,89,0); }
 }
 
 /* ======== RESPONSIVE ======== */
-@media (max-width: 900px) {
-  .sidebar { width: 200px; }
-  .main-content { margin-left: 200px; padding: 20px; }
-  .stats-row { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 1100px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 860px) {
+  .sidebar { width: 210px; }
+  .main-content { margin-left: 210px; padding: 20px; }
+  .form-row.cols-2, .form-row.cols-3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .sidebar { position: static; width: 100%; min-height: 0; }
+  .app-layout { flex-direction: column; }
+  .main-content { margin-left: 0; }
+  .stats-row { grid-template-columns: 1fr; }
+  .attention-item { grid-template-columns: 1fr; }
 }
 </style>
 </head>
@@ -299,15 +319,15 @@ tbody tr:hover { background: var(--surface2); }
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">
-      <div class="lmark">🗂️</div>
-      <h1>Booking Admin</h1>
-      <p>Store management panel</p>
+      <div class="lmark">L</div>
+      <h1>Lily Service</h1>
+      <p>Booking admin</p>
     </div>
     <label class="login-label">Password</label>
-    <input type="password" class="login-input" id="login-pass" placeholder="Enter admin password" />
-    <button class="login-btn" onclick="doLogin()">Sign In →</button>
+    <input type="password" class="login-input" id="login-pass" placeholder="Enter admin password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
     <div class="login-error" id="login-error">Incorrect password. Try again.</div>
-    <p style="font-size:11px;color:#94A3B8;margin-top:20px;text-align:center;">
+    <p style="font-size:11px;color:#A89BB4;margin-top:20px;text-align:center;">
       Secure mode is enabled.<br>Supabase credentials stay on the server.
     </p>
   </div>
@@ -320,27 +340,27 @@ tbody tr:hover { background: var(--surface2); }
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-name">📦 Booking Admin</div>
-        <div class="brand-sub">Store Management</div>
+        <div class="brand-name">Lily Service</div>
+        <div class="brand-sub">Booking admin</div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section-label">Main</div>
         <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
-          <span class="nav-icon">📊</span> Dashboard
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span> Dashboard
         </div>
         <div class="nav-item" onclick="showPage('bookings')" id="nav-bookings">
-          <span class="nav-icon">📋</span> All Bookings
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span> All Bookings
         </div>
         <div class="nav-item" onclick="showPage('orders-data')" id="nav-orders-data">
-          <span class="nav-icon">🧾</span> Order Data
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span> Order Data
         </div>
         <div class="divider" style="margin:10px 0;"></div>
         <div class="nav-section-label">Settings</div>
         <div class="nav-item" onclick="showPage('blocks')" id="nav-blocks">
-          <span class="nav-icon">🚫</span> Block Dates
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg></span> Block Dates
         </div>
         <div class="nav-item" onclick="showPage('products')" id="nav-products">
-          <span class="nav-icon">🛍️</span> Products
+          <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l-1 14H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg></span> Products
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -365,10 +385,16 @@ tbody tr:hover { background: var(--surface2); }
           </div>
         </div>
 
-        <!-- Paid orders that could not be booked (capacity reached) — flag for refund -->
-        <div class="alert alert-error" id="rejection-alert" style="display:none;border:1.5px solid #DC2626;background:#FEF2F2;padding:14px 16px;border-radius:10px;margin-bottom:16px;">
-          <strong>⚠️ Paid order(s) could NOT be booked — needs attention</strong>
-          <div id="rejection-alert-detail" style="font-size:12.5px;color:#7F1D1D;margin-top:6px;line-height:1.6;"></div>
+        <!-- Paid orders that could not be booked: refund or rebook these customers -->
+        <div class="attention" id="rejection-alert">
+          <div class="attention-head">
+            <div class="attention-icon">!</div>
+            <div>
+              <div class="attention-title" id="rejection-alert-title">Paid orders that could not be booked</div>
+              <div class="attention-sub">These customers paid, but the slot was no longer available. Contact them to rebook or refund, then mark the order as resolved.</div>
+            </div>
+          </div>
+          <ul class="attention-list" id="rejection-alert-detail"></ul>
         </div>
 
         <div class="stats-row">
@@ -400,7 +426,7 @@ tbody tr:hover { background: var(--surface2); }
         </div>
 
         <div class="card">
-          <div class="card-header">📅 Upcoming Bookings (Next 7 Days)</div>
+          <div class="card-header">Upcoming Bookings (Next 7 Days)</div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -500,7 +526,7 @@ tbody tr:hover { background: var(--surface2); }
         </div>
 
         <div class="card">
-          <div class="card-header">🧾 Synced Order Line Items</div>
+          <div class="card-header">Synced Order Line Items</div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -529,7 +555,7 @@ tbody tr:hover { background: var(--surface2); }
 
         <div style="display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start;">
           <div class="card">
-            <div class="card-header">🚫 Add Block</div>
+            <div class="card-header">Add Block</div>
             <div class="card-body">
               <div class="alert alert-success" id="block-success">✅ Block saved!</div>
               <div class="alert alert-error"   id="block-error">⚠ Error. Check console.</div>
@@ -561,7 +587,7 @@ tbody tr:hover { background: var(--surface2); }
           </div>
 
           <div class="card">
-            <div class="card-header">📋 Active Blocks</div>
+            <div class="card-header">Active Blocks</div>
             <div class="table-wrap">
               <table>
                 <thead>
@@ -590,7 +616,7 @@ tbody tr:hover { background: var(--surface2); }
         <div class="alert alert-error"   id="products-error"></div>
 
         <div class="card">
-          <div class="card-header">🛍️ Products in Database</div>
+          <div class="card-header">Products in Database</div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -612,11 +638,11 @@ tbody tr:hover { background: var(--surface2); }
               <div style="font-size:17px;font-weight:700;">🔗 Shopify Product Connection</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save your store domain and enable server-managed webhook/product sync</div>
             </div>
-            <button onclick="closeSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
+            <button onclick="closeSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#A89BB4;">✕</button>
           </div>
 
           <div style="padding:22px 24px;">
-              <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#92400E;line-height:1.6;">
+              <div style="background:#F6F1FA;border:1px solid #E4D9EC;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13px;color:#51405F;line-height:1.6;">
               <strong>How this works:</strong><br>
               Enter your Shopify store domain once. The server reads the Shopify Admin API token from Render env vars, so the token never appears in the browser.
             </div>
@@ -628,7 +654,7 @@ tbody tr:hover { background: var(--surface2); }
               </div>
               <div class="form-group">
                 <label class="form-label">Server-managed credentials</label>
-                <input type="text" class="form-input" value="Token stored in Render env vars" readonly style="background:#F8FAFC;">
+                <input type="text" class="form-input" value="Token stored in Render env vars" readonly style="background:#FBF9FD;">
               </div>
             </div>
 
@@ -636,7 +662,7 @@ tbody tr:hover { background: var(--surface2); }
               Save Domain & Enable Auto Sync
             </button>
 
-            <div id="sync-error" style="display:none;margin-top:12px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:13px;color:#DC2626;"></div>
+            <div id="sync-error" style="display:none;margin-top:12px;padding:10px 14px;background:#FFF4F2;border:1px solid #F5C6C2;border-radius:8px;font-size:13px;color:#B42318;"></div>
 
           </div>
         </div>
@@ -650,7 +676,7 @@ tbody tr:hover { background: var(--surface2); }
               <div style="font-size:17px;font-weight:700;">🧾 Shopify Order Connection</div>
               <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Save credentials and enable automatic paid-order import</div>
             </div>
-            <button onclick="closeOrderSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94A3B8;">✕</button>
+            <button onclick="closeOrderSyncModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#A89BB4;">✕</button>
           </div>
           <div style="padding:18px 22px;">
             <div class="form-group" style="margin-bottom:12px;">
@@ -659,9 +685,9 @@ tbody tr:hover { background: var(--surface2); }
             </div>
             <div class="form-group" style="margin-bottom:12px;">
               <label class="form-label">Server-managed credentials</label>
-              <input type="text" class="form-input" value="Token stored in Render env vars" readonly style="background:#F8FAFC;">
+              <input type="text" class="form-input" value="Token stored in Render env vars" readonly style="background:#FBF9FD;">
             </div>
-            <div id="order-sync-error" style="display:none;margin-bottom:12px;padding:10px 12px;background:#FEF2F2;border:1px solid #FECACA;border-radius:8px;font-size:12px;color:#DC2626;"></div>
+            <div id="order-sync-error" style="display:none;margin-bottom:12px;padding:10px 12px;background:#FFF4F2;border:1px solid #F5C6C2;border-radius:8px;font-size:12px;color:#B42318;"></div>
             <button class="btn btn-accent" id="order-sync-btn" onclick="saveOrderSyncSettings()" style="width:100%;">Save Domain & Enable Auto Sync</button>
           </div>
         </div>
@@ -1095,35 +1121,81 @@ function productNameFor(id) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────
+function escapeHtml(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 async function loadRejectionAlerts() {
   const el = document.getElementById('rejection-alert');
-  const detail = document.getElementById('rejection-alert-detail');
+  const list = document.getElementById('rejection-alert-detail');
+  const title = document.getElementById('rejection-alert-title');
   if (!el || !sb) return;
   try {
-    const { data } = await sb.from('booking_rejections')
-      .select('*')
+    // Only open alerts (needs the "resolved" column from SQL part A3; falls back if missing)
+    let res = await sb.from('booking_rejections').select('*')
+      .eq('resolved', false)
       .order('created_at', { ascending: false })
-      .limit(10);
-    if (!data || !data.length) {
+      .limit(50);
+    if (res.error) {
+      res = await sb.from('booking_rejections').select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+    }
+    const rows = res.data || [];
+
+    // One entry per order + product + date + slot (webhook retries can create twins)
+    const groups = new Map();
+    rows.forEach(r => {
+      const key = [r.shopify_order_id, r.product_id || r.product_name, r.booking_date, r.slot].join('|');
+      if (!groups.has(key)) groups.set(key, { ...r, ids: [] });
+      groups.get(key).ids.push(r.id);
+    });
+    const items = Array.from(groups.values());
+
+    if (!items.length) {
       el.style.display = 'none';
-      detail.textContent = '';
+      list.innerHTML = '';
       return;
     }
+
     el.style.display = 'block';
-    detail.innerHTML = data.map(r => {
-      const date = r.booking_date || '—';
-      const slot = r.slot || '—';
-      const prod = r.product_name || r.product_id || '—';
-      const order = r.order_name || r.shopify_order_id || '—';
-      return `<div style="margin-bottom:6px;">
-        <strong>${order}</strong> — ${prod} (${date} ${slot})<br>
-        <span style="color:#B91C1C;">${r.reason}</span>
-      </div>`;
+    title.textContent = items.length === 1
+      ? '1 paid order could not be booked'
+      : `${items.length} paid orders could not be booked`;
+
+    list.innerHTML = items.map(r => {
+      const order = escapeHtml(r.order_name || r.shopify_order_id || '—');
+      const prod = escapeHtml(r.product_name || r.product_id || '—');
+      const when = [r.booking_date, r.slot].filter(Boolean).map(escapeHtml).join(' · ') || '—';
+      const who = [r.customer_name, r.customer_phone].filter(Boolean).map(escapeHtml).join(' · ');
+      return `<li class="attention-item">
+        <div class="attention-main">
+          <div class="attention-line"><strong>${order}</strong> — ${prod}</div>
+          <div class="attention-meta">${when}${who ? ' &nbsp;|&nbsp; ' + who : ''}</div>
+          <div class="attention-reason">${escapeHtml(r.reason)}</div>
+        </div>
+        <div class="attention-actions">
+          <button class="btn btn-outline btn-sm" onclick='resolveRejection(${JSON.stringify(r.ids)}, this)'>Mark resolved</button>
+        </div>
+      </li>`;
     }).join('');
   } catch (e) {
-    // Table may not exist yet in older deployments — hide quietly.
     el.style.display = 'none';
   }
+}
+
+async function resolveRejection(ids, btn) {
+  if (!sb || !ids || !ids.length) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  const { error } = await sb.from('booking_rejections')
+    .update({ resolved: true, resolved_at: new Date().toISOString() })
+    .in('id', ids);
+  if (error) {
+    alert('Could not mark as resolved: ' + error.message + '\n\nRun SQL part A3 in Supabase first.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Mark resolved'; }
+    return;
+  }
+  loadRejectionAlerts();
 }
 
 async function loadDashboard() {
@@ -1172,7 +1244,7 @@ async function loadDashboard() {
   const tbody = document.getElementById('upcoming-tbody');
   const rows = upcomingRes.data || [];
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#94A3B8;">No upcoming bookings</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#A89BB4;">No upcoming bookings</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(r => `
@@ -1200,11 +1272,11 @@ async function loadBookings() {
   const { data, error } = await query.limit(200);
   if (error || !data.length) {
     if (error) console.error('loadBookings error:', error);
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:24px;color:#94A3B8;">${error ? 'Error loading bookings' : 'No bookings found'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:24px;color:#A89BB4;">${error ? 'Error loading bookings' : 'No bookings found'}</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(r => `
-    <tr${r.is_active === false ? ' style="opacity:0.55;background:#F8FAFC;"' : ''}>
+    <tr${r.is_active === false ? ' style="opacity:0.55;background:#FBF9FD;"' : ''}>
       <td>${r.booking_date}</td>
       <td>${productNameFor(r.product_id)}</td>
       <td>${slotBadge(r.slot)}</td>
@@ -1248,7 +1320,7 @@ async function loadOrderData() {
     document.getElementById('order-stat-lines').textContent = '0';
     document.getElementById('order-stat-email').textContent = '0';
     document.getElementById('order-stat-phone').textContent = '0';
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:24px;color:#94A3B8;">${error ? 'Error loading order data' : 'No order-linked bookings found'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:24px;color:#A89BB4;">${error ? 'Error loading order data' : 'No order-linked bookings found'}</td></tr>`;
     return;
   }
 
@@ -1273,7 +1345,7 @@ async function loadOrderData() {
       <td style="font-size:12px;line-height:1.6;white-space:normal;min-width:280px;">
         ${orderPropertySnapshot(r)}
       </td>
-      <td style="font-size:12px;color:#64748B;max-width:260px;white-space:normal;">${r.notes || '—'}</td>
+      <td style="font-size:12px;color:#7E738A;max-width:260px;white-space:normal;">${r.notes || '—'}</td>
     </tr>
   `).join('');
 }
@@ -1478,7 +1550,7 @@ async function loadBlocks() {
   }
 
   if (!data || !data.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#94A3B8;">No active blocks</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#A89BB4;">No active blocks</td></tr>`;
     return;
   }
 
@@ -1534,7 +1606,7 @@ async function loadZones() {
   }
 
   if (!data || !data.length) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#94A3B8;">No zones yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#A89BB4;">No zones yet</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(z => `
@@ -1619,7 +1691,7 @@ async function loadProducts() {
   allProducts = data || [];
 
   if (!data || !data.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#94A3B8;">
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:#A89BB4;">
       No products yet. Open <strong>Shopify Connection</strong> to enable webhook-based product sync.
     </td></tr>`;
     return;
@@ -1628,13 +1700,13 @@ async function loadProducts() {
   tbody.innerHTML = data.map(p => {
     const linkedName = data.find(x => x.id === p.linked_product_id)?.name || '—';
     const img = p.shopify_image
-      ? `<img src="${p.shopify_image}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #E2E8F0;">`
-      : `<div style="width:40px;height:40px;background:#F1F5F9;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">📦</div>`;
+      ? `<img src="${p.shopify_image}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid #ECE5F2;">`
+      : `<div style="width:40px;height:40px;background:#F6F1FA;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">📦</div>`;
     return `<tr>
       <td>${img}</td>
-      <td><strong>${p.name}</strong>${p.shopify_handle ? `<br><span style="font-size:11px;color:#94A3B8;">${p.shopify_handle}</span>` : ''}</td>
-      <td style="font-size:12px;color:#64748B;">${p.shopify_product_id || '—'}</td>
-      <td><code style="background:#F1F5F9;padding:2px 8px;border-radius:5px;font-size:11px;">${p.id}</code></td>
+      <td><strong>${p.name}</strong>${p.shopify_handle ? `<br><span style="font-size:11px;color:#A89BB4;">${p.shopify_handle}</span>` : ''}</td>
+      <td style="font-size:12px;color:#7E738A;">${p.shopify_product_id || '—'}</td>
+      <td><code style="background:#F6F1FA;padding:2px 8px;border-radius:5px;font-size:11px;">${p.id}</code></td>
       <td>${linkedName}</td>
       <td><span class="badge ${p.is_active ? 'badge-active' : 'badge-blocked'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
