@@ -1,0 +1,1090 @@
+{%- comment -%}
+  Add-ons and delivery fees (tag "non-package") are not bookings: no calendar,
+  no date/slot properties, and they are added to the cart normally.
+{%- endcomment -%}
+{%- unless product.tags contains 'non-package' -%}
+<!--
+===========================================================
+  SHOPIFY BOOKING WIDGET v6 — WITH 24-HOUR RESTRICTION
+  Rendered INSIDE the product form (blocks/buy-buttons.liquid)
+===========================================================
+  - Add to cart is guarded from the first moment the page loads.
+  - Each booking saves a visible date/slot AND hidden machine-readable
+    values (_bk_date = YYYY-MM-DD, _bk_slot = morning|evening).
+  - Availability comes from the public view `booking_slots` (no customer
+    data); live changes arrive through the realtime table `availability_ping`.
+===========================================================
+-->
+
+<!-- Shopify reads these as order line item properties -->
+<input type="hidden" id="bk-date-val"  name="properties[📅 Date]">
+<input type="hidden" id="bk-slot-val"  name="properties[⏰ Slot]">
+<!-- Hidden (underscore) properties: not shown to customers, used by the checks -->
+<input type="hidden" id="bk-date-key"  name="properties[_bk_date]">
+<input type="hidden" id="bk-slot-key"  name="properties[_bk_slot]">
+
+<script>
+// ============================================================
+// EARLY ADD-TO-CART GUARD
+// Runs while the page is still loading, before the theme's own
+// add-to-cart code. Listens on window (capture) so it always runs
+// first: no click, Enter key or sticky button can add this product
+// until the booking widget has validated the date and slot.
+// ============================================================
+(function () {
+  if (window.__bkGuardInstalled) return;
+  window.__bkGuardInstalled = true;
+  window.__bkApproved = false;
+
+  var me = document.currentScript;
+  var myForm = me && me.closest ? me.closest('form') : null;
+  if (myForm) myForm.classList.add('bk-incomplete');
+
+  function bookingForm() {
+    var dv = document.getElementById('bk-date-val');
+    return (dv && dv.form) || myForm;
+  }
+
+  window.addEventListener('click', function (e) {
+    if (window.__bkApproved) return;
+    var t = e.target && e.target.closest ? e.target.closest('button, input[type="submit"]') : null;
+    if (!t || t.type !== 'submit') return;
+    var form = bookingForm();
+    if (!form || t.form !== form) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (window.__bkRequestAdd) window.__bkRequestAdd(t);
+  }, true);
+
+  window.addEventListener('submit', function (e) {
+    if (window.__bkApproved) return;
+    var form = bookingForm();
+    if (!form || e.target !== form) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (window.__bkRequestAdd) window.__bkRequestAdd(e.submitter || null);
+  }, true);
+})();
+</script>
+
+<!-- Widget Mount Point -->
+<div id="bk-widget"></div>
+
+<script>
+// The product shown on this page (falls back to the original stand id)
+var BK_PRODUCT_ID = "{%- if product -%}{{ product.id }}{%- else -%}8811194319045{%- endif -%}";
+
+var BK_SUPABASE_URL = "https://adcjzrstjrdxzfobcfbl.supabase.co";
+var BK_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkY2p6cnN0anJkeHpmb2JjZmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY0MDYsImV4cCI6MjA5Mjc3MjQwNn0.vDPAwlOAr9OaGHU-unHI3l3_guja_wLjhCAivZ8nscA";
+
+// Linked pairs — if one is booked, the other is blocked
+var BK_LINKED_PAIRS = [["8811194319045", "8811194548421"]];
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+form.bk-incomplete [ref="addToCartButton"],
+form.bk-incomplete button[type="submit"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+form.bk-busy [ref="addToCartButton"],
+form.bk-busy button[type="submit"] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+#bk-widget {
+  --gold:      #8F6BA5;
+  --gold-lt:   #B99ACC;
+  --gold-bg:   #F6F1FA;
+  --gold-border:#E4D9EC;
+  --dark:      #241C2D;
+  --mid:       #51405F;
+  --muted:     #7E738A;
+  --surface:   #FFFFFF;
+  --white:     #FFFFFF;
+  --green:     #2F7A59;
+  --red:       #B42318;
+  --radius:    0px;
+  font-family: 'DM Sans', sans-serif;
+  max-width: 460px;
+  margin: 18px 0 12px;
+  color: var(--dark);
+  background: linear-gradient(180deg, rgba(143,107,165,0.08), rgba(143,107,165,0));
+  padding: 4px;
+  border-radius: 0px;
+}
+#bk-widget * { box-sizing: border-box; margin: 0; padding: 5px; }
+
+.bk-card {
+  border: 1px solid var(--gold-border);
+  border-radius: 0px;
+  background: var(--surface);
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+  box-shadow: 0 6px 18px rgba(42, 26, 54, 0.06);
+}
+.bk-card:focus-within { box-shadow: 0 0 0 3px rgba(143,107,165,.18), 0 6px 18px rgba(42, 26, 54, 0.08); }
+
+.bk-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px;
+  background: linear-gradient(135deg, rgba(143,107,165,0.09), rgba(143,107,165,0.03));
+  border-bottom: 1px solid var(--gold-border);
+}
+.bk-step-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--gold); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .2s;
+}
+.bk-step-num.done { background: var(--green); }
+.bk-card-head h4 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 14px; font-weight: 400;
+  color: var(--mid);
+}
+
+.bk-cal-wrap { padding: 12px 10px 10px; }
+.bk-cal-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.bk-cal-nav button {
+  background: none; border: 1px solid var(--gold-border);
+  border-radius: 0px; width: 30px; height: 30px;
+  cursor: pointer; color: var(--gold); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.bk-cal-nav button:hover:not(:disabled) { background: var(--gold-bg); border-color: var(--gold); }
+.bk-cal-nav button:disabled { opacity: .28; cursor: default; }
+.bk-cal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 15px; color: var(--mid);
+}
+.bk-grid {
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 3px;
+}
+.bk-dow {
+  text-align: center; font-size: 10px; font-weight: 600;
+  color: var(--muted); letter-spacing: .7px; text-transform: uppercase;
+  padding: 2px 0 5px;
+}
+.bk-day {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+  border-radius: 0px; font-size: 12px; font-weight: 500;
+  cursor: pointer; border: 1.5px solid transparent;
+  transition: all .15s; color: var(--dark);
+  position: relative; user-select: none;
+}
+.bk-day:hover:not(.bk-off):not(.bk-sel) { background: var(--gold-bg); border-color: var(--gold-lt); }
+.bk-day.bk-sel  { background: linear-gradient(135deg, var(--gold), #6F4F86); color: #fff; border-color: var(--gold); font-weight: 700; box-shadow: 0 8px 18px rgba(143,107,165,0.25); }
+.bk-day.bk-off  { background: #F5F0E8; color: #CBBFAE; cursor: not-allowed; opacity: 0.6; }
+.bk-day.bk-empty { pointer-events: none; background: none; }
+
+.bk-slots { display: flex; gap: 12px; padding: 14px; }
+
+.bk-avail-float {
+  position: fixed;
+  left: 20px;
+  bottom: 90px;
+  z-index: 9998;
+  box-sizing: border-box;
+  max-width: calc(100vw - 40px);
+  width: max-content;
+  background: #ffffff;
+  border: 1px solid #E4D9EC;
+  border-radius: 12px;
+  padding: 7px 12px 7px 26px;
+  box-shadow: 0 6px 16px rgba(42, 26, 54, 0.16);
+  direction: rtl;
+  text-align: right;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #51405F;
+  line-height: 1.6;
+  animation: bkAvailPop .25s ease;
+}
+.bk-avail-float::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-right: 1px solid #E4D9EC;
+  border-bottom: 1px solid #E4D9EC;
+  transform: rotate(45deg);
+}
+.bk-avail-float-close {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #F1EBF6;
+  color: #7E738A;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bk-avail-float-close:hover { background: #E4D9EC; color: #51405F; }
+@keyframes bkAvailPop {
+  from { opacity: 0; transform: translateY(8px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 480px) {
+  .bk-avail-float {
+    font-size: 11px;
+    line-height: 1.55;
+    padding: 6px 10px 6px 24px;
+    border-radius: 11px;
+  }
+  .bk-avail-float-close {
+    top: 5px;
+    left: 5px;
+    width: 15px;
+    height: 15px;
+    font-size: 9px;
+  }
+  .bk-avail-float::after { left: 20px; }
+}
+
+.bk-delivery-note {
+  margin: 0 14px 14px;
+  padding: 9px 12px;
+  border-radius: 0px;
+  background: #F4ECF8;
+  border: 1px solid #D6C3E3;
+  color: var(--mid);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: right;
+  direction: rtl;
+}
+.bk-slot {
+  flex: 1; padding: 12px 8px; border-radius: 0px;
+  border: 1.5px solid var(--gold-border); background: linear-gradient(180deg, #FBF8FD, #F7F2FA);
+  cursor: pointer; transition: all .18s; text-align: center;
+}
+.bk-slot:hover { border-color: var(--gold); background: #F1EAF7; }
+.bk-slot.bk-slot-sel { border-color: var(--gold); background: linear-gradient(135deg, var(--gold), #705081); color: #fff; box-shadow: 0 8px 18px rgba(143,107,165,0.2); }
+.bk-slot.bk-slot-sel .bk-slot-lbl,
+.bk-slot.bk-slot-sel .bk-slot-time,
+.bk-slot.bk-slot-sel .bk-slot-st { color: rgba(255,255,255,.9); }
+.bk-slot.bk-slot-na  { opacity: .4; cursor: not-allowed; background: #F2EDE3; }
+.bk-slot-ico  { font-size: 18px; margin-bottom: 3px; }
+.bk-slot-lbl  { display: block; font-size: 12px; font-weight: 600; color: var(--mid); }
+.bk-slot-time { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.bk-slot-st   { display: block; font-size: 10px; margin-top: 5px; font-weight: 600; }
+.bk-st-ok  { color: var(--green); }
+.bk-st-na  { color: var(--red); }
+.bk-st-chk { color: var(--muted); }
+
+.bk-slots-ph {
+  padding: 16px 14px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+
+#bk-summary {
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #2A2032 0%, #4A3858 100%);
+  border-radius: 0px; margin-bottom: 10px; display: none;
+  flex-wrap: wrap; gap: 12px;
+}
+#bk-summary.show { display: flex; }
+.bk-sum-item { flex: 1; min-width: 90px; }
+.bk-sum-lbl { font-size: 9.5px; letter-spacing: .9px; text-transform: uppercase; color: #C9A86C; }
+.bk-sum-val { font-size: 12px; color: #FFF8EC; font-weight: 600; margin-top: 2px; }
+
+#bk-err {
+  padding: 11px 14px; border-radius: 0px; margin-bottom: 12px;
+  background: #FFF0EE; border: 1px solid #F5C6C2;
+  font-size: 13px; color: var(--red); display: none;
+}
+#bk-err.show { display: block; }
+
+@keyframes bk-flash {
+  0%   { background: #FFE3DF; border-color: #E8938B; }
+  30%  { background: #FFD9D3; border-color: #E26B60; }
+  100% { background: #FFF0EE; border-color: #F5C6C2; }
+}
+#bk-err.bk-flash {
+  animation: bk-flash .9s ease-out;
+}
+
+.bk-spin {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--gold-border); border-top-color: var(--gold);
+  border-radius: 50%; animation: bk-spin .8s linear infinite;
+  vertical-align: middle; margin-right: 5px;
+}
+@keyframes bk-spin { to { transform: rotate(360deg); } }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var sb = supabase.createClient(BK_SUPABASE_URL, BK_SUPABASE_KEY);
+  var ROOT = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+  var SLOTS_TABLE = 'booking_slots'; // public view: product_id, booking_date, slot, is_active
+
+  var MAX_BOOKINGS_PER_SLOT = 2;
+  // 24 hours (database rule) + 30 minutes safety buffer for the time spent paying
+  var MIN_AHEAD_MS = (24 * 60 + 30) * 60 * 1000;
+  var SLOTS = {
+    morning: { label: 'Morning', time: '6:30 AM – 8:30 AM', icon: '🌅' },
+    evening: { label: 'Evening', time: '2:30 PM – 6:30 PM', icon: '🌇' }
+  };
+  var DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  var state = {
+    viewMonth: null,
+    selDate: null,
+    selSlot: null,
+    avail: null,
+    showSlots: false,
+    productIds: [BK_PRODUCT_ID],
+    linkedProductIds: [],
+    shopifyProductId: null,
+    fullBlockedDates: {},
+    fullBookedDates: {},
+    checking: false,
+    bubbleDismissed: false,
+    liveRefreshTimer: null,
+    rtChannel: null
+  };
+
+  var ready = Promise.resolve();
+  var adding = false;
+
+  // ─── 24-hour rule helpers ───
+  function getSlotStart(date, slotKey) {
+    var hour = slotKey === 'morning' ? 6 : 14;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30, 0, 0);
+  }
+
+  function isSlotBookable(date, slotKey) {
+    return getSlotStart(date, slotKey).getTime() >= Date.now() + MIN_AHEAD_MS;
+  }
+
+  function getMinBookableDate() {
+    var minTime = new Date(Date.now() + MIN_AHEAD_MS);
+    return new Date(minTime.getFullYear(), minTime.getMonth(), minTime.getDate());
+  }
+
+  function getMaxBookableDate() {
+    var d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setMonth(d.getMonth() + 2);
+    return d;
+  }
+
+  function isDateBookable(date) {
+    var maxDate = getMaxBookableDate();
+    var compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    var compareMax = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+    return compareDate <= compareMax && (isSlotBookable(date, 'morning') || isSlotBookable(date, 'evening'));
+  }
+
+  function fmt(d) {
+    if (!d) return '';
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
+  function propDateToYMD(val) {
+    var s = String(val || '');
+    var iso = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return iso[1] + '-' + iso[2] + '-' + iso[3];
+    var long = s.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+    if (long) {
+      var mi = MONTHS.map(function (m) { return m.toLowerCase(); }).indexOf(long[2].toLowerCase());
+      if (mi !== -1) return long[3] + '-' + String(mi + 1).padStart(2, '0') + '-' + String(+long[1]).padStart(2, '0');
+    }
+    return s;
+  }
+
+  // ─── Product scope ───
+  function linkedProductFor(id) {
+    for (var i = 0; i < BK_LINKED_PAIRS.length; i++) {
+      var pair = BK_LINKED_PAIRS[i];
+      if (pair[0] === id) return pair[1];
+      if (pair[1] === id) return pair[0];
+    }
+    return null;
+  }
+
+  function uniq(arr) {
+    var out = [];
+    (arr || []).forEach(function(v) {
+      if (!v) return;
+      if (out.indexOf(v) === -1) out.push(v);
+    });
+    return out;
+  }
+
+  function inferShopifyProductId() {
+    try {
+      var id = null;
+      if (window.ShopifyAnalytics && window.ShopifyAnalytics.meta && window.ShopifyAnalytics.meta.product) {
+        id = window.ShopifyAnalytics.meta.product.id;
+      }
+      if (!id && window.meta && window.meta.product && window.meta.product.id) {
+        id = window.meta.product.id;
+      }
+      return id ? String(id) : String(BK_PRODUCT_ID);
+    } catch (_) {
+      return String(BK_PRODUCT_ID);
+    }
+  }
+
+  function inferProductHandle() {
+    try {
+      var m = (window.location.pathname || '').match(/\/products\/([^/?#]+)/i);
+      return m && m[1] ? decodeURIComponent(m[1]) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function resolveProductScope() {
+    var linkedFallback = linkedProductFor(BK_PRODUCT_ID);
+    state.productIds = uniq([BK_PRODUCT_ID]);
+    state.linkedProductIds = uniq([linkedFallback]);
+    state.shopifyProductId = inferShopifyProductId();
+
+    var shopifyId = state.shopifyProductId;
+    var handle = inferProductHandle();
+
+    var r = await sb.from('products')
+      .select('id, linked_product_id, shopify_product_id, shopify_handle')
+      .eq('is_active', true);
+
+    var rows = r.data || [];
+    if (!rows.length) return;
+
+    var matched = rows.filter(function(p) {
+      return p.id === BK_PRODUCT_ID
+        || (shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId)
+        || (handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase());
+    });
+
+    if (!matched.length) return;
+
+    var base = matched.find(function(p) { return shopifyId && p.shopify_product_id && String(p.shopify_product_id) === shopifyId; }) ||
+      matched.find(function(p) { return handle && p.shopify_handle && String(p.shopify_handle).toLowerCase() === handle.toLowerCase(); }) ||
+      matched[0];
+
+    var linkedIds = [linkedFallback];
+    if (base && base.linked_product_id) linkedIds.push(base.linked_product_id);
+
+    state.productIds = uniq([base.id, BK_PRODUCT_ID]);
+    state.linkedProductIds = uniq(linkedIds);
+  }
+
+  async function loadFullBlockedDates() {
+    var min = fmt(getMinBookableDate());
+    var max = fmt(getMaxBookableDate());
+    var r = await sb.from('blocked_slots')
+      .select('block_date, slot, product_id')
+      .gte('block_date', min)
+      .lte('block_date', max);
+
+    var grouped = {};
+    var productIds = state.productIds;
+    (r.data || []).forEach(function(b) {
+      if (b.product_id && productIds.indexOf(b.product_id) === -1) return;
+      var day = b.block_date;
+      if (!grouped[day]) grouped[day] = { all: false, morning: false, evening: false };
+      if (!b.slot || b.slot === 'all') grouped[day].all = true;
+      if (b.slot === 'morning') grouped[day].morning = true;
+      if (b.slot === 'evening') grouped[day].evening = true;
+    });
+
+    var full = {};
+    Object.keys(grouped).forEach(function(d) {
+      var g = grouped[d];
+      if (g.all || (g.morning && g.evening)) full[d] = true;
+    });
+    state.fullBlockedDates = full;
+  }
+
+  async function loadFullBookedDates() {
+    var min = fmt(getMinBookableDate());
+    var max = fmt(getMaxBookableDate());
+    var r = await sb.from(SLOTS_TABLE)
+      .select('booking_date, slot, product_id')
+      .eq('is_active', true)
+      .gte('booking_date', min)
+      .lte('booking_date', max);
+
+    var grouped = {};
+    (r.data || []).forEach(function(b) {
+      if (!b || !b.booking_date || !b.slot) return;
+      var day = b.booking_date;
+      if (!grouped[day]) grouped[day] = { morning: 0, evening: 0 };
+      if (b.slot === 'morning') grouped[day].morning += 1;
+      if (b.slot === 'evening') grouped[day].evening += 1;
+    });
+
+    var full = {};
+    Object.keys(grouped).forEach(function(d) {
+      var g = grouped[d];
+      if (g.morning >= MAX_BOOKINGS_PER_SLOT && g.evening >= MAX_BOOKINGS_PER_SLOT) full[d] = true;
+    });
+    state.fullBookedDates = full;
+  }
+
+  async function loadSlotCounts(dateStr) {
+    var counts = { morning: 0, evening: 0 };
+    var mine = { morning: false, evening: false };
+    var r = await sb.from(SLOTS_TABLE)
+      .select('slot, product_id')
+      .eq('is_active', true)
+      .eq('booking_date', dateStr);
+
+    var productIds = state.productIds;
+    (r.data || []).forEach(function(b) {
+      if (!b || !b.slot) return;
+      if (b.slot === 'morning') counts.morning += 1;
+      if (b.slot === 'evening') counts.evening += 1;
+      if (productIds.indexOf(b.product_id) !== -1) mine[b.slot] = true;
+    });
+
+    return { counts: counts, mine: mine };
+  }
+
+  async function checkAvail(dateStr) {
+    var counts = await loadSlotCounts(dateStr);
+    var taken = { morning: false, evening: false };
+
+    var productIds = state.productIds;
+    var linkedIds = state.linkedProductIds && state.linkedProductIds.length
+      ? state.linkedProductIds
+      : uniq([linkedProductFor(BK_PRODUCT_ID)]);
+
+    if (linkedIds.length) {
+      var r2 = await sb.from(SLOTS_TABLE)
+        .select('slot')
+        .eq('is_active', true)
+        .in('product_id', linkedIds)
+        .eq('booking_date', dateStr);
+      (r2.data || []).forEach(function(b) { taken[b.slot] = true; });
+    }
+
+    var r3 = await sb.from('blocked_slots')
+      .select('slot, product_id')
+      .eq('block_date', dateStr);
+    (r3.data || []).forEach(function(b) {
+      if (!b.product_id || productIds.indexOf(b.product_id) !== -1) {
+        if (!b.slot || b.slot === 'all') {
+          taken.morning = true;
+          taken.evening = true;
+        } else {
+          taken[b.slot] = true;
+        }
+      }
+    });
+
+    return {
+      morning: !taken.morning && !counts.mine.morning && counts.counts.morning < MAX_BOOKINGS_PER_SLOT,
+      evening: !taken.evening && !counts.mine.evening && counts.counts.evening < MAX_BOOKINGS_PER_SLOT,
+      counts: counts.counts,
+      mine: counts.mine
+    };
+  }
+
+  async function checkCartForConflict(dateStr, slotKey) {
+    try {
+      var resp = await fetch(ROOT + 'cart.js', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!resp.ok) return null;
+      var cart = await resp.json();
+      var items = (cart && cart.items) || [];
+      var targetId = state.shopifyProductId || String(BK_PRODUCT_ID);
+
+      for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (String(it.product_id) !== targetId || !it.properties) continue;
+        var props = it.properties;
+        var pDate = props._bk_date || null;
+        var pSlot = props._bk_slot || '';
+        if (!pDate || !pSlot) {
+          Object.keys(props).forEach(function(k) {
+            if (k.charAt(0) === '_') return;
+            if (!pDate && k.toLowerCase().includes('date')) pDate = props[k];
+            if (!pSlot && k.toLowerCase().includes('slot')) pSlot = props[k];
+          });
+        }
+        if (!pDate) continue;
+        var s = String(pSlot).toLowerCase();
+        var cartSlot = (s.indexOf('evening') !== -1 || s.indexOf('pm') !== -1) ? 'evening' : 'morning';
+        if (propDateToYMD(pDate) === dateStr && cartSlot === slotKey) return true;
+      }
+      return false;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function refreshLiveAvailability() {
+    await Promise.all([loadFullBlockedDates(), loadFullBookedDates()]);
+    if (state.selDate) {
+      state.avail = await checkAvail(fmt(state.selDate));
+      if (state.selSlot && state.avail[state.selSlot] === false) state.selSlot = null;
+    }
+    render();
+  }
+
+  async function refreshSelectedDateOnly() {
+    if (!state.selDate || adding) return;
+    state.avail = await checkAvail(fmt(state.selDate));
+    if (state.selSlot && state.avail[state.selSlot] === false) state.selSlot = null;
+    render();
+  }
+
+  function startLiveRefresh() {
+    if (state.liveRefreshTimer) clearInterval(state.liveRefreshTimer);
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') refreshLiveAvailability().catch(function() {});
+    });
+    state.liveRefreshTimer = setInterval(function() {
+      if (document.visibilityState === 'visible') refreshSelectedDateOnly().catch(function() {});
+    }, 5000);
+    try {
+      // One-row table bumped by the database whenever bookings or blocked slots change
+      state.rtChannel = sb
+        .channel('bk-widget-live-' + Math.random().toString(36).slice(2, 8))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'availability_ping' }, function() {
+          refreshLiveAvailability().catch(function() {});
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('[bk-widget] realtime unavailable:', e);
+    }
+  }
+
+  // ─── Render ───
+  function render() {
+    var root = document.getElementById('bk-widget');
+    if (!root) return;
+    var prevErr = document.getElementById('bk-err');
+    var keepErr = prevErr && prevErr.classList.contains('show') ? prevErr.textContent : '';
+
+    root.innerHTML =
+      renderCalCard() +
+      (state.showSlots ? renderSlotCard() : '') +
+      renderSummary() +
+      '<div id="bk-err" role="alert"></div>';
+
+    if (keepErr) {
+      var e = document.getElementById('bk-err');
+      e.textContent = keepErr;
+      e.classList.add('show');
+    }
+
+    bindCal();
+    bindSlots();
+    syncHiddenInputs();
+    syncSummary();
+    syncAvailBubble();
+  }
+
+  function renderCalCard() {
+    var vm = state.viewMonth;
+    var minDate = getMinBookableDate();
+    var maxDate = getMaxBookableDate();
+
+    var firstDay = new Date(vm.getFullYear(), vm.getMonth(), 1);
+    var lastDay = new Date(vm.getFullYear(), vm.getMonth() + 1, 0);
+
+    var prevFirst = new Date(vm.getFullYear(), vm.getMonth() - 1, 1);
+    var nextFirst = new Date(vm.getFullYear(), vm.getMonth() + 1, 1);
+    var canPrev = prevFirst >= new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    var canNext = nextFirst <= new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+    var done = !!state.selDate;
+    var head = '<div class="bk-card-head">' +
+      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '1') + '</div>' +
+      '<h4>Select Delivery Date</h4></div>';
+
+    var grid = '<div class="bk-grid">';
+    DOW.forEach(function(d) { grid += '<div class="bk-dow">' + d + '</div>'; });
+    for (var b = 0; b < firstDay.getDay(); b++) grid += '<div class="bk-day bk-empty"></div>';
+
+    for (var d = 1; d <= lastDay.getDate(); d++) {
+      var date = new Date(vm.getFullYear(), vm.getMonth(), d);
+      var dStr = fmt(date);
+      var off = !isDateBookable(date) || !!state.fullBlockedDates[dStr] || !!state.fullBookedDates[dStr];
+      var isSel = state.selDate && fmt(state.selDate) === dStr;
+      grid += '<div class="bk-day' + (off ? ' bk-off' : '') + (isSel ? ' bk-sel' : '') + '" data-d="' + dStr + '">' + d + '</div>';
+    }
+    grid += '</div>';
+
+    return '<div class="bk-card">' + head +
+      '<div class="bk-cal-wrap">' +
+      '<div class="bk-cal-nav">' +
+      '<button type="button" id="bk-prev" ' + (canPrev ? '' : 'disabled') + '>&#8249;</button>' +
+      '<span class="bk-cal-title">' + MONTHS[vm.getMonth()] + ' ' + vm.getFullYear() + '</span>' +
+      '<button type="button" id="bk-next" ' + (canNext ? '' : 'disabled') + '>&#8250;</button>' +
+      '</div>' + grid + '</div></div>';
+  }
+
+  function renderSlotCard() {
+    var done = !!state.selSlot;
+    var head = '<div class="bk-card-head">' +
+      '<div class="bk-step-num' + (done ? ' done' : '') + '">' + (done ? '✓' : '2') + '</div>' +
+      '<h4>Select Time Slot</h4></div>';
+
+    var body;
+    if (!state.selDate) {
+      body = '<div class="bk-slots-ph">← Pick a date first</div>';
+    } else if (state.checking) {
+      body = '<div class="bk-slots-ph"><span class="bk-spin"></span>Checking availability…</div>';
+    } else {
+      body = '<div class="bk-slots">';
+      ['morning', 'evening'].forEach(function(key) {
+        var info = SLOTS[key];
+        var avail = state.avail ? state.avail[key] : null;
+        var bookedCount = state.avail && state.avail.counts ? state.avail.counts[key] : null;
+        var alreadyBooked = state.avail && state.avail.mine ? !!state.avail.mine[key] : false;
+        var tooSoon = state.selDate ? !isSlotBookable(state.selDate, key) : false;
+        var isSel = state.selSlot === key;
+        var isNa = avail === false || tooSoon;
+        var stTxt, stCls;
+        if (avail === null) { stTxt = 'Checking…'; stCls = 'bk-st-chk'; }
+        else if (alreadyBooked) { stTxt = 'This product is already booked for this slot'; stCls = 'bk-st-na'; }
+        else if (avail && !tooSoon) { stTxt = bookedCount !== null ? bookedCount + '/' + MAX_BOOKINGS_PER_SLOT + ' booked' : 'Available'; stCls = 'bk-st-ok'; }
+        else if (bookedCount !== null && bookedCount >= MAX_BOOKINGS_PER_SLOT) { stTxt = 'Fully booked'; stCls = 'bk-st-na'; }
+        else { stTxt = 'Unavailable'; stCls = 'bk-st-na'; }
+        body +=
+          '<div class="bk-slot' + (isSel ? ' bk-slot-sel' : '') + (isNa ? ' bk-slot-na' : '') +
+          '" data-slot="' + key + '"' + (isNa ? ' tabindex="-1"' : '') + '>' +
+          '<div class="bk-slot-ico">' + info.icon + '</div>' +
+          '<span class="bk-slot-lbl">' + info.label + '</span>' +
+          '<span class="bk-slot-time">' + info.time + '</span>' +
+          '<span class="bk-slot-st ' + stCls + '">' + stTxt + '</span>' +
+          '</div>';
+      });
+      body += '</div>';
+    }
+    return '<div class="bk-card">' + head + body +
+      '<div class="bk-delivery-note">ملاحظة: الفترة المختارة هي فترة التوصيل وليست فترة الخدمة.</div>' +
+      '</div>';
+  }
+
+  function syncAvailBubble() {
+    var show = state.selDate && !state.selSlot && !state.bubbleDismissed;
+    var el = document.getElementById('bk-avail-float');
+    if (!show) {
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      return;
+    }
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'bk-avail-float';
+    el.className = 'bk-avail-float';
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      '<button type="button" class="bk-avail-float-close" aria-label="إغلاق">✕</button>' +
+      '<span>لم تجد الوقت المناسب؟ تواصل معنا عبر الواتساب، وقد نتمكن من توفيره لك.</span>';
+    el.querySelector('.bk-avail-float-close').addEventListener('click', function() {
+      state.bubbleDismissed = true;
+      syncAvailBubble();
+    });
+    document.body.appendChild(el);
+  }
+
+  function renderSummary() {
+    return '<div id="bk-summary">' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Date</div><div class="bk-sum-val" id="bk-sv-date">—</div></div>' +
+      '<div class="bk-sum-item"><div class="bk-sum-lbl">Slot</div><div class="bk-sum-val" id="bk-sv-slot">—</div></div>' +
+      '</div>';
+  }
+
+  function bindCal() {
+    var prev = document.getElementById('bk-prev');
+    var next = document.getElementById('bk-next');
+    if (prev) prev.addEventListener('click', function() {
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() - 1, 1);
+      render();
+    });
+    if (next) next.addEventListener('click', function() {
+      state.viewMonth = new Date(state.viewMonth.getFullYear(), state.viewMonth.getMonth() + 1, 1);
+      render();
+    });
+
+    document.querySelectorAll('.bk-day:not(.bk-off):not(.bk-empty)').forEach(function(el) {
+      el.addEventListener('click', async function() {
+        var parts = el.dataset.d.split('-');
+        var selectedDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+        if (!isDateBookable(selectedDate)) {
+          showErr('This date is not available for booking. Please select a date at least 24 hours from now.');
+          return;
+        }
+        clearErr();
+        state.selDate = selectedDate;
+        state.selSlot = null;
+        state.avail = null;
+        state.showSlots = true;
+        state.checking = true;
+        state.bubbleDismissed = false;
+        render();
+        try {
+          await ready;
+          var pre = await checkAvail(el.dataset.d);
+          state.avail = pre;
+          state.avail.morning = state.avail.morning && isSlotBookable(selectedDate, 'morning');
+          state.avail.evening = state.avail.evening && isSlotBookable(selectedDate, 'evening');
+        } catch (e) {
+          state.avail = null;
+        }
+        state.checking = false;
+        render();
+      });
+    });
+  }
+
+  function bindSlots() {
+    document.querySelectorAll('.bk-slot:not(.bk-slot-na)').forEach(function(el) {
+      el.addEventListener('click', function() {
+        state.selSlot = el.dataset.slot;
+        clearErr();
+        render();
+      });
+    });
+  }
+
+  function syncHiddenInputs() {
+    var dv = document.getElementById('bk-date-val');
+    var sv = document.getElementById('bk-slot-val');
+    var dk = document.getElementById('bk-date-key');
+    var sk = document.getElementById('bk-slot-key');
+
+    if (dv) dv.value = state.selDate ?
+      state.selDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    if (sv) sv.value = state.selSlot ? SLOTS[state.selSlot].label + ' (' + SLOTS[state.selSlot].time + ')' : '';
+    if (dk) dk.value = state.selDate ? fmt(state.selDate) : '';
+    if (sk) sk.value = state.selSlot || '';
+    syncAddToCartState();
+  }
+
+  function syncSummary() {
+    var el = document.getElementById('bk-summary');
+    if (!el) return;
+    if (state.selDate || state.selSlot) {
+      el.classList.add('show');
+      var sd = document.getElementById('bk-sv-date');
+      var ss = document.getElementById('bk-sv-slot');
+      if (sd) sd.textContent = state.selDate ?
+        state.selDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+      if (ss) ss.textContent = state.selSlot ? SLOTS[state.selSlot].label : '—';
+    } else {
+      el.classList.remove('show');
+    }
+  }
+
+  function showErr(msg, scroll) {
+    var el = document.getElementById('bk-err');
+    if (!el) return;
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('show');
+    el.classList.remove('bk-flash');
+    void el.offsetWidth;
+    el.classList.add('bk-flash');
+    if (scroll) {
+      var w = document.getElementById('bk-widget');
+      if (w && w.scrollIntoView) w.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function clearErr() {
+    var el = document.getElementById('bk-err');
+    if (el) {
+      el.classList.remove('show');
+      el.classList.remove('bk-flash');
+      el.textContent = '';
+    }
+  }
+
+  function bookingForm() {
+    var dv = document.getElementById('bk-date-val');
+    return dv ? dv.form : null;
+  }
+
+  function hasBookingValues() {
+    var date = document.getElementById('bk-date-key');
+    var slot = document.getElementById('bk-slot-key');
+    return !!(date && date.value.trim() && slot && slot.value.trim());
+  }
+
+  function syncAddToCartState() {
+    var form = bookingForm();
+    if (!form) return;
+    form.classList.toggle('bk-incomplete', !hasBookingValues());
+  }
+
+  // Bookable products are always added with quantity 1
+  function enforceQuantity(form) {
+    var qty = form.querySelector('input[name="quantity"]');
+    if (qty && Number(qty.value) !== 1) {
+      qty.value = '1';
+      qty.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  function waitForCartAdd(timeoutMs) {
+    return new Promise(function (resolve) {
+      var done = false;
+      function onUpdate(e) {
+        var d = (e.detail && e.detail.data) || {};
+        if (d.source !== 'product-form-component') return;
+        finish(!d.didError);
+      }
+      function finish(ok) {
+        if (done) return;
+        done = true;
+        document.removeEventListener('cart:update', onUpdate);
+        clearTimeout(timer);
+        resolve(ok);
+      }
+      var timer = setTimeout(function () { finish(null); }, timeoutMs);
+      document.addEventListener('cart:update', onUpdate);
+    });
+  }
+
+  async function requestAdd(submitter) {
+    if (adding) return;
+    var form = bookingForm();
+    if (!form) return;
+    var btn = (submitter && submitter.form === form) ? submitter :
+      (form.querySelector('[ref="addToCartButton"]') || form.querySelector('button[type="submit"]'));
+    if (btn && btn.disabled) return;
+
+    if (!state.selDate) { showErr('Please select a delivery date.', true); return; }
+    if (!state.selSlot) { showErr('Please select a time slot.', true); return; }
+    if (!isDateBookable(state.selDate) || !isSlotBookable(state.selDate, state.selSlot)) {
+      showErr('This date is no longer available for booking. Please choose another date.', true);
+      return;
+    }
+
+    adding = true;
+    form.classList.add('bk-busy');
+    clearErr();
+
+    try {
+      await ready;
+
+      state.checking = true;
+      render();
+      var avail = null;
+      try { avail = await checkAvail(fmt(state.selDate)); } catch (_) { avail = null; }
+      state.checking = false;
+      if (avail) {
+        avail.morning = avail.morning && isSlotBookable(state.selDate, 'morning');
+        avail.evening = avail.evening && isSlotBookable(state.selDate, 'evening');
+        state.avail = avail;
+      }
+      render();
+
+      if (!avail) { showErr('Could not check availability. Please try again.', true); return; }
+      if (avail[state.selSlot] === false) {
+        if (avail.mine && avail.mine[state.selSlot]) {
+          showErr('This product is already booked for this slot. Please choose another time.', true);
+        } else if (avail.counts && avail.counts[state.selSlot] >= MAX_BOOKINGS_PER_SLOT) {
+          showErr('That slot has reached the daily capacity of 2 bookings. Please choose another time.', true);
+        } else {
+          showErr('That slot is not available for this product on the selected date. Please choose another time.', true);
+        }
+        return;
+      }
+
+      var dateStr = fmt(state.selDate);
+      var slotKey = state.selSlot;
+      var cartConflict = await checkCartForConflict(dateStr, slotKey);
+      if (cartConflict === true) {
+        showErr('This product is already in your cart for this date and slot. Please choose another time.', true);
+        return;
+      }
+
+      syncHiddenInputs();
+      if (!hasBookingValues()) { showErr('Please select a delivery date and time slot.', true); return; }
+      enforceQuantity(form);
+
+      var waiter = waitForCartAdd(10000);
+      window.__bkApproved = true;
+      try {
+        if (btn && !btn.disabled) btn.click();
+        else if (form.requestSubmit) form.requestSubmit();
+      } finally {
+        window.__bkApproved = false;
+      }
+
+      var ok = await waiter;
+      if (ok === false) { showErr('Could not add to cart. Please try again.', true); return; }
+      if (ok === null) {
+        var inCart = await checkCartForConflict(dateStr, slotKey);
+        if (inCart !== true) { showErr('Could not confirm the item was added. Please try again.', true); return; }
+      }
+
+      window.location.href = ROOT + 'cart';
+    } finally {
+      adding = false;
+      form.classList.remove('bk-busy');
+    }
+  }
+
+  window.__bkRequestAdd = function (submitter) {
+    requestAdd(submitter).catch(function (err) {
+      console.error('[bk-widget] add to cart failed:', err);
+      showErr('Something went wrong. Please try again.', true);
+    });
+  };
+
+  document.addEventListener('variant:update', function () {
+    setTimeout(syncAddToCartState, 0);
+  });
+
+  async function init() {
+    var minDate = getMinBookableDate();
+    state.viewMonth = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+    render();
+    ready = resolveProductScope().catch(function () {});
+    await ready;
+    await Promise.all([loadFullBlockedDates(), loadFullBookedDates()]).catch(function () {});
+    render();
+    startLiveRefresh();
+  }
+
+  syncAddToCartState();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+{%- endunless -%}

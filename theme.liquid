@@ -1,0 +1,316 @@
+<!doctype html>
+<html
+  {% if request.design_mode %}
+    class="shopify-design-mode"
+  {% endif %}
+  lang="{{ request.locale.iso_code }}"
+>
+  <head>
+    {%- comment -%} Delivery fee products are internal: never show their product page {%- endcomment -%}
+    {%- if template.name == 'product' and product.tags contains 'delivery-fee' -%}
+      <meta name="robots" content="noindex, nofollow">
+      <script>window.location.replace('{{ routes.root_url }}');</script>
+    {%- endif -%}
+
+    {%- if settings.favicon != blank -%}
+      <link
+        rel="icon"
+        type="image/png"
+        href="{{ settings.favicon | image_url: width: 32, height: 32 }}"
+      >
+    {%- endif -%}
+
+    {% # theme-check-disable RemoteAsset %}
+    {% comment %} This a way to wait for main content to load when navigating to a new page so that the view transitions can work consistently {% endcomment %}
+    {% if settings.transition_to_main_product or settings.page_transition_enabled %}
+      <link
+        rel="expect"
+        href="#MainContent"
+        blocking="render"
+        id="view-transition-render-blocker"
+      >
+    {% endif %}
+
+    {%- render 'meta-tags' -%}
+    {%- render 'stylesheets' -%}
+    {%- render 'fonts' -%}
+    {%- render 'scripts' -%}
+    {%- render 'theme-styles-variables' -%}
+    {%- render 'color-schemes' -%}
+
+    {% if request.design_mode %}
+      {%- render 'theme-editor' -%}
+    {% endif %}
+
+    {{ content_for_header }}
+    {% # theme-check-enable RemoteAsset %}
+
+    <style>
+      /* Hide delivery fee products anywhere they could be listed (all-products page, grids, recommendations) */
+      product-card:has(a[href*="/products/delivery-fee-"]),
+      .product-grid__item:has(a[href*="/products/delivery-fee-"]),
+      .resource-list__item:has(a[href*="/products/delivery-fee-"]),
+      .predictive-search-results__card:has(a[href*="/products/delivery-fee-"]) {
+        display: none !important;
+      }
+    </style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="{{ 'cart-v.js' | asset_url }}" defer></script>
+<script src="{{ 'delivery-fee.js' | asset_url }}" defer></script>
+  </head>
+
+  <body class="page-width-{{ settings.page_width }} card-hover-effect-{{ settings.card_hover_effect }}">
+    {% render 'skip-to-content-link', href: '#MainContent', text: 'accessibility.skip_to_text' %}
+    <div id="header-group">
+      {% sections 'header-group' %}
+    </div>
+
+    <script>
+      // Inline header height and menu style calculations to prevent layout shift
+      // Note: Updates in calculateHeaderGroupHeight(), updateTransparentHeaderOffset() and setHeaderMenuStyle() utilities.js should be kept in sync with this function
+      (function setHeaderHeighCustomProperties() {
+        /*
+         * Header calculation functions for maintaining CSS variables
+         * Mimic calculateHeaderGroupHeight() in utilities.js
+         */
+        const header = document.querySelector('header-component');
+        const headerGroup = document.querySelector('#header-group');
+        const hasHeaderSection = headerGroup?.querySelector('.header-section');
+
+        if (!header || !headerGroup) return;
+
+        const headerTopRow = header.querySelector('.header__row--top');
+        const headerHeight = header.offsetHeight;
+
+        // Calculate the total height of the header group
+        let headerGroupHeight = 0;
+        const children = headerGroup.children;
+        for (let i = 0; i < children.length; i++) {
+          const element = children[i];
+          if (element === header || !(element instanceof HTMLElement)) continue;
+          headerGroupHeight += element.offsetHeight;
+        }
+
+        // Check for transparent header special case
+        if (header.hasAttribute('transparent') && header.parentElement?.nextElementSibling) {
+          headerGroupHeight += headerHeight;
+        }
+
+        // Set CSS variables
+        document.body.style.setProperty('--header-height', `${headerHeight}px`);
+        document.body.style.setProperty('--header-group-height', `${headerGroupHeight}px`);
+
+        if (headerTopRow) {
+          window.requestAnimationFrame(function () {
+            document.body.style.setProperty('--top-row-height', `${headerTopRow.offsetHeight}px`);
+          });
+        }
+
+        /**
+         * Updates CSS custom properties for transparent header offset calculation
+         * Mimic updateTransparentHeaderOffset() in utilities.js
+         */
+
+        if (!hasHeaderSection || !header?.hasAttribute('transparent')) {
+          document.body.style.setProperty('--transparent-header-offset-boolean', '0');
+          return;
+        }
+
+        const hasImmediateSection = hasHeaderSection.nextElementSibling?.classList.contains('shopify-section');
+
+        const shouldApplyOffset = !hasImmediateSection ? '1' : '0';
+        document.body.style.setProperty('--transparent-header-offset-boolean', shouldApplyOffset);
+      })();
+
+      (function setHeaderMenuStyle() {
+        const headerComponent = document.querySelector('#header-component');
+        if (headerComponent) {
+          const isTouchDevice = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
+          const overflowList = headerComponent?.querySelector('overflow-list');
+          const hasReachedMinimum = overflowList && overflowList.hasAttribute('minimum-reached');
+          headerComponent.dataset.menuStyle = isTouchDevice || hasReachedMinimum ? 'drawer' : 'menu';
+        }
+      })();
+    </script>
+
+    <main
+      id="MainContent"
+      class="content-for-layout"
+      role="main"
+      data-page-transition-enabled="{{ settings.page_transition_enabled }}"
+      data-product-transition="{{ settings.transition_to_main_product }}"
+      data-template="{{ template }}"
+    >
+      {{ content_for_layout }}
+    </main>
+
+    <footer>
+      {% sections 'footer-group' %}
+    </footer>
+
+    {% render 'search-modal' %}
+
+    {% if settings.quick_add or settings.mobile_quick_add %}
+      {% render 'quick-add-modal' %}
+    {% endif %}
+ <a href="https://wa.me/96597681914" target="_blank"
+style="position:fixed; bottom:20px; left:20px; width:60px; height:60px; z-index:9999;">
+  
+  <img src="
+    {% comment %} https://cdn-icons-png.flaticon.com/512/733/733585.png {% endcomment %}
+    https://cdn.shopify.com/s/files/1/0777/7615/8917/files/WhatsApp_Image_2026-08-30_at_11.54.42_PM-removebg-preview.png?v=1788116134
+    "
+  style="width:100%; height:100%; border-radius:50%; 
+  {% comment %} box-shadow:0 4px 10px rgba(0,0,0,0.2); {% endcomment %}
+  ">
+</a>
+<script>
+(function () {
+  'use strict';
+
+  function normalize(text) {
+    return (text || '').replace(/\s+/g, '').toLowerCase();
+  }
+
+  function applyArabic(root) {
+
+    var el = root || document;
+
+    // ─────────────────────────────────────────────
+    // SLOT TRANSLATION
+    // ─────────────────────────────────────────────
+    var slots = el.querySelectorAll('.bk-slot');
+
+    slots.forEach(function(slot) {
+
+      var labelEl = slot.querySelector('.bk-slot-lbl');
+      var timeEl  = slot.querySelector('.bk-slot-time');
+
+      if (!labelEl || !timeEl) return;
+
+      var label = normalize(labelEl.textContent);
+      var time  = normalize(timeEl.textContent);
+
+      // prevent re-overwriting
+      if (!labelEl.dataset.ar) {
+
+        if (label.includes('morning')) {
+          labelEl.textContent = 'الفترة الصباحية';
+          labelEl.dataset.ar = "1";
+        }
+
+        if (label.includes('evening')) {
+          labelEl.textContent = 'الفترة المسائية';
+          labelEl.dataset.ar = "1";
+        }
+      }
+
+      if (!timeEl.dataset.ar) {
+
+        if (time.includes('6:30am') || time.includes('8:30am')) {
+          timeEl.textContent = 'من ٦:٣٠ إلى ٨:٣٠ صباحاً';
+          timeEl.dataset.ar = "1";
+        }
+
+        if (time.includes('2:30pm') || time.includes('6:30pm')) {
+          timeEl.textContent = 'من ٢:٣٠ إلى ٦:٣٠ مساءً';
+          timeEl.dataset.ar = "1";
+        }
+      }
+    });
+
+    // ─────────────────────────────────────────────
+    // MAIN HEADINGS (STEP TITLES)
+    // ─────────────────────────────────────────────
+    var titles = el.querySelectorAll('.bk-card-head h4');
+
+    titles.forEach(function (t) {
+      var txt = normalize(t.textContent);
+
+      if (t.dataset.ar) return;
+
+      if (txt.includes('selectdeliverydate')) {
+        t.textContent = 'اختر تاريخ التوصيل';
+        t.dataset.ar = "1";
+      }
+
+      if (txt.includes('selecttimeslot')) {
+        t.textContent = 'اختر فترة التوصيل';
+        t.dataset.ar = "1";
+      }
+
+      if (txt.includes('deliveryarea')) {
+        t.textContent = 'منطقة التوصيل';
+        t.dataset.ar = "1";
+      }
+    });
+
+    // ─────────────────────────────────────────────
+    // SUMMARY LABELS
+    // ─────────────────────────────────────────────
+    var sumLabels = el.querySelectorAll('.bk-sum-lbl');
+
+    sumLabels.forEach(function (s) {
+      var txt = normalize(s.textContent);
+
+      if (s.dataset.ar) return;
+
+      if (txt === 'date') {
+        s.textContent = 'التاريخ';
+        s.dataset.ar = "1";
+      }
+
+      if (txt === 'slot') {
+        s.textContent = 'الفترة';
+        s.dataset.ar = "1";
+      }
+
+      if (txt.includes('governorate')) {
+        s.textContent = 'المحافظة';
+        s.dataset.ar = "1";
+      }
+
+      if (txt === 'area') {
+        s.textContent = 'المنطقة';
+        s.dataset.ar = "1";
+      }
+
+      if (txt.includes('delivery')) {
+        s.textContent = 'التوصيل';
+        s.dataset.ar = "1";
+      }
+    });
+
+  }
+
+  function observeWidget() {
+    var target = document.getElementById('bk-widget');
+    if (!target) return;
+
+    // initial run
+    applyArabic(target);
+
+    var observer = new MutationObserver(function () {
+      applyArabic(target);
+    });
+
+    observer.observe(target, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', observeWidget);
+  } else {
+    observeWidget();
+  }
+
+})();
+</script>
+
+{% comment %} Delivery fee by area: see assets/delivery-fee.js (loaded in <head>) {% endcomment %}
+ 
+  </body> 
+</html>

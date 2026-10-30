@@ -1,0 +1,496 @@
+<div class="customer-information-page">
+
+  <div class="customer-information-container">
+
+    <div class="customer-information-header">
+      <h1>Customer Information</h1>
+      <p>Please enter your information to continue to payment.</p>
+    </div>
+
+    <form id="customer-information-form">
+
+      <div class="customer-form-grid">
+
+        <div class="form-field">
+          <label for="customer_first_name">First Name</label>
+          <input type="text" id="customer_first_name" autocomplete="given-name" required>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_last_name">Last Name</label>
+          <input type="text" id="customer_last_name" autocomplete="family-name" required>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_phone">Phone Number</label>
+          <div class="phone-group">
+            <span class="country-code">+965</span>
+            <input type="text" id="customer_phone" placeholder="XXXXXXXX" maxlength="8" inputmode="numeric" autocomplete="tel" required>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_phone_confirm">Confirm Phone Number</label>
+          <div class="phone-group">
+            <span class="country-code">+965</span>
+            <input type="text" id="customer_phone_confirm" placeholder="XXXXXXXX" maxlength="8" inputmode="numeric" required>
+          </div>
+          <p id="phone-error" class="phone-error">Phone numbers do not match.</p>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_area">Area</label>
+          <input type="text" id="customer_area" required>
+          <p id="customer-area-note" class="customer-area-note">
+            This is the delivery area you chose in the cart. To change it, <a href="{{ routes.cart_url }}">go back to the cart</a>.
+          </p>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_block">Block</label>
+          <input type="text" id="customer_block" required>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_street">Street</label>
+          <input type="text" id="customer_street" required>
+        </div>
+
+        <div class="form-field">
+          <label for="customer_house">House Number / Floor & Apartment Number</label>
+          <input type="text" id="customer_house" required>
+        </div>
+
+        <div class="form-field form-field-full">
+          <label for="customer_notes">Notes</label>
+          <textarea id="customer_notes" rows="3" placeholder="Any additional delivery instructions"></textarea>
+        </div>
+
+      </div>
+
+      <div class="payment-action">
+        <div id="knet-validation-error" role="alert"></div>
+        <button id="knet-payment-btn" type="submit">Pay with KNET</button>
+        <div id="knet-loader" style="display:none;">Redirecting to KNET...</div>
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+
+<style>
+.customer-information-page {
+  padding: 50px 20px;
+}
+
+.customer-information-container {
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+.customer-information-header {
+  margin-bottom: 30px;
+}
+
+.customer-information-header h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+.customer-information-header p {
+  margin: 0;
+  color: #666;
+  font-size: 15px;
+}
+
+.customer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 24px;
+  row-gap: 20px;
+}
+
+.form-field {
+  min-width: 0;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+}
+
+.form-field input,
+.form-field textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 13px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #222;
+  background: #fff;
+  border: 1px solid #cfcfcf;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-field input[readonly] {
+  background: #f5f5f5;
+  color: #444;
+  cursor: not-allowed;
+}
+
+.customer-area-note {
+  display: none;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.customer-area-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.form-field textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+  border-color: #222;
+  box-shadow: 0 0 0 1px #222;
+}
+
+.form-field-full {
+  grid-column: 1 / -1;
+}
+
+.phone-group {
+  display: flex;
+  width: 100%;
+}
+
+.country-code {
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  background: #f5f5f5;
+  border: 1px solid #cfcfcf;
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+  font-size: 15px;
+  color: #444;
+}
+
+.phone-group input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.phone-error {
+  display: none;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #c62828;
+}
+
+.payment-action {
+  margin-top: 28px;
+}
+
+#knet-payment-btn {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: #0066cc;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+#knet-payment-btn:hover {
+  background: #005bb8;
+}
+
+#knet-payment-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#knet-validation-error {
+  display: none;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: #fff0ee;
+  border: 1px solid #f5c6c2;
+  border-radius: 4px;
+  color: #b42318;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+#knet-validation-error.show {
+  display: block;
+}
+
+#knet-validation-error a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+#knet-validation-error.flash {
+  animation: knet-flash 0.9s ease-out;
+}
+
+@keyframes knet-flash {
+  0%   { background: #ffe3df; border-color: #e8938b; }
+  30%  { background: #ffd9d3; border-color: #e26b60; }
+  100% { background: #fff0ee; border-color: #f5c6c2; }
+}
+
+#knet-loader {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+}
+
+@media screen and (max-width: 749px) {
+  .customer-information-page {
+    padding: 30px 16px;
+  }
+  .customer-information-header h1 {
+    font-size: 26px;
+  }
+  .customer-form-grid {
+    grid-template-columns: 1fr;
+    row-gap: 18px;
+  }
+  .form-field-full {
+    grid-column: auto;
+  }
+  .payment-action {
+    margin-top: 24px;
+  }
+}
+</style>
+
+{% schema %}
+{
+  "name": "Customer Section",
+  "tag": "section",
+  "class": "Customer section",
+  "presets": [
+    {
+      "name": "customer info Section"
+    }
+  ]
+}
+{% endschema %}
+
+<script>
+(function () {
+  'use strict';
+
+  var CART_URL = {{ routes.cart_url | json }};
+
+  // Supabase is loaded in the theme <head>
+  var bkSb = null;
+  try {
+    if (typeof supabase !== 'undefined') {
+      bkSb = supabase.createClient(
+        'https://adcjzrstjrdxzfobcfbl.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFkY2p6cnN0anJkeHpmb2JjZmJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxOTY0MDYsImV4cCI6MjA5Mjc3MjQwNn0.vDPAwlOAr9OaGHU-unHI3l3_guja_wLjhCAivZ8nscA'
+      );
+    }
+  } catch (_) {}
+
+  // Shared rules from assets/cart-v.js (loaded in the theme <head>)
+  function rules() { return window.LilyCartRules || null; }
+
+  function showValidationError(message, withCartLink) {
+    var el = document.getElementById('knet-validation-error');
+    if (!el) return;
+    el.textContent = '⚠ ' + message;
+    if (withCartLink) {
+      el.appendChild(document.createTextNode(' '));
+      var a = document.createElement('a');
+      a.href = CART_URL;
+      a.textContent = 'Go back to the cart';
+      el.appendChild(a);
+    }
+    el.classList.add('show');
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  }
+
+  function clearValidationError() {
+    var el = document.getElementById('knet-validation-error');
+    if (el) {
+      el.classList.remove('show');
+      el.classList.remove('flash');
+      el.textContent = '';
+    }
+  }
+
+  function value(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  // Fill the Area field from the area chosen in the cart, so the address
+  // always matches the delivery fee that was charged.
+  async function prepare() {
+    var R = rules();
+    if (!R) {
+      showValidationError('Could not verify your order. Please refresh the page.');
+      return;
+    }
+    try {
+      var fc = await R.fetchCart();
+      var attrs = fc.cart.attributes || {};
+      var area = attrs[R.ATTR_AREA];
+      var areaInput = document.getElementById('customer_area');
+      if (area && areaInput) {
+        areaInput.value = area;
+        areaInput.readOnly = true;
+        var note = document.getElementById('customer-area-note');
+        if (note) note.style.display = 'block';
+      }
+      var res = await R.validate({ sb: bkSb, strict: true, checkDelivery: true, requireItems: true });
+      if (!res.ok && !res.transient) showValidationError(res.error, true);
+    } catch (e) {
+      console.error('[customer-info] prepare failed:', e);
+    }
+  }
+
+  async function startKNETPayment(event) {
+    event.preventDefault();
+
+    var button = document.getElementById('knet-payment-btn');
+    var loader = document.getElementById('knet-loader');
+    if (button.disabled) return;
+
+    var phone = value('customer_phone');
+    var confirmPhone = value('customer_phone_confirm');
+
+    if (phone.length !== 8) {
+      alert('Phone number must be exactly 8 digits.');
+      return;
+    }
+    if (phone !== confirmPhone) {
+      document.getElementById('phone-error').style.display = 'block';
+      alert('Phone numbers do not match.');
+      return;
+    }
+    document.getElementById('phone-error').style.display = 'none';
+
+    button.disabled = true;
+    loader.style.display = 'block';
+
+    function stop() {
+      loader.style.display = 'none';
+      button.disabled = false;
+    }
+
+    try {
+      var R = rules();
+      if (!R) {
+        showValidationError('Could not verify your order. Please refresh the page and try again.');
+        stop();
+        return;
+      }
+
+      // Every rule, strictly, right before payment (fresh cart, live availability)
+      clearValidationError();
+      var check = await R.validate({ sb: bkSb, strict: true, checkDelivery: true, requireItems: true });
+      if (!check.ok) {
+        showValidationError(check.error, !check.transient);
+        stop();
+        return;
+      }
+
+      var cart = check.cart;
+      var attrs = cart.attributes || {};
+
+      var customer = {
+        first_name: value('customer_first_name'),
+        last_name: value('customer_last_name'),
+        phone: '+965' + phone,
+        // the address area is always the delivery area that was charged
+        area: attrs[R.ATTR_AREA] || value('customer_area'),
+        block: value('customer_block'),
+        street: value('customer_street'),
+        house: value('customer_house'),
+        notes: value('customer_notes'),
+        delivery_area: attrs[R.ATTR_AREA] || '',
+        delivery_governorate: attrs[R.ATTR_GOV] || ''
+      };
+
+      if (!customer.first_name || !customer.last_name || !customer.area ||
+          !customer.block || !customer.street || !customer.house) {
+        alert('Please fill all required customer information.');
+        stop();
+        return;
+      }
+
+      var response = await fetch('https://api.lilyserve.com/api/payment/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cart: cart,
+          customer: customer,
+          total_amount: cart.total_price
+        })
+      });
+
+      var result = await response.json();
+
+      if (result.success) {
+        window.location.href = result.payment_url;
+        return;
+      }
+
+      alert(result.message || 'Unable to start payment.');
+    } catch (error) {
+      console.error(error);
+      alert('Unable to start payment.');
+    }
+
+    stop();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('customer-information-form');
+    if (!form) return;
+
+    function onlyDigits(e) {
+      e.target.value = e.target.value.replace(/\D/g, '').slice(0, 8);
+    }
+    document.getElementById('customer_phone').addEventListener('input', onlyDigits);
+    document.getElementById('customer_phone_confirm').addEventListener('input', onlyDigits);
+
+    form.addEventListener('submit', startKNETPayment);
+    prepare();
+  });
+})();
+</script>

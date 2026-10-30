@@ -139,7 +139,7 @@ You'll find a line like:
 ```
 
 ### 5D. Paste the Widget Code
-1. Open **`booking-widget-v2.html`** (the widget file)
+1. Open **`theme/snippets/booking-system.liquid`** (the widget file)
 2. Copy the **entire** contents
 3. Back in Shopify, paste it INSIDE the form tag — place it BEFORE the
    quantity selector or "Add to Cart" button section
@@ -357,7 +357,7 @@ This is already handled automatically. Here's how it works:
 | File | Purpose | Where it goes |
 |------|---------|---------------|
 | `supabase-schema.sql` | Creates database tables | Paste into Supabase SQL Editor (once) |
-| `booking-widget-v2.html` | Customer-facing booking UI | Inside Shopify product page template |
+| `theme/snippets/booking-system.liquid` | Customer-facing booking UI | Inside Shopify product page template |
 | `admin-panel.html` | Your management dashboard | Open locally or host privately |
 
 ---

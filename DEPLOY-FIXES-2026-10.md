@@ -36,9 +36,12 @@ Online Store → Themes → … → Edit code:
 
 | Repo file | Theme file | What changes |
 |---|---|---|
-| `booking-widget-v2.html` | `snippets/booking-system.liquid` | replace whole file |
-| `Cart-v.md` | `assets/cart-v.js` | replace whole file |
-| `backup.js` | `layout/theme.liquid` — the `<script>` block between `{% comment %} To add Delivery Based on Area {% endcomment %}` and `{% comment %} END {% endcomment %}` | replace that script block only |
+| `theme/snippets/booking-system.liquid` | `snippets/booking-system.liquid` | replace whole file |
+| `theme/assets/cart-v.js` | `assets/cart-v.js` | replace whole file |
+| `theme/assets/delivery-fee.js` | `assets/delivery-fee.js` | replace whole file (the delivery script no longer lives inside `layout/theme.liquid`) |
+| `theme/layout/theme.liquid` | `layout/theme.liquid` | replace whole file (loads Supabase, `cart-v.js` and `delivery-fee.js` in `<head>`) |
+| `theme/snippets/cart-summary.liquid` | `snippets/cart-summary.liquid` | replace whole file (delivery area box + checkout button) |
+| `theme/sections/customer-information.liquid` | `sections/customer-information.liquid` | replace whole file (customer info / KNET payment page) |
 
 Widget fixes: availability is checked **before** the item is added (the theme
 was adding it first); no false "already in your cart" error; quantity fixed at 1;

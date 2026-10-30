@@ -78,7 +78,7 @@ Customers buy a delivery slot (morning or evening) on a Shopify product page. Ea
 
 ## 3. User-facing surfaces
 
-### 3.1 Booking widget (`booking-widget-v2.html`)
+### 3.1 Booking widget (`theme/snippets/booking-system.liquid`)
 Embedded inside `<form action="/cart/add">` on each Shopify product page. Three-step flow:
 1. **Pick date** — calendar, grayed out where slots are full / blocked / inside the 24h window
 2. **Pick slot** — Morning (6:30–8:30 AM) or Evening (2:30–6:30 PM); shows live `2/3 booked` count
@@ -309,7 +309,7 @@ npx supabase functions deploy <name> [--no-verify-jwt]
 
 1. **DB trigger** (`supabase-schema.sql:enforce_booking_integrity`) — the source of truth. Counts existing bookings for `(booking_date, slot)` and rejects inserts that would push the count to ≥3.
 
-2. **Widget** (`booking-widget-v2.html`)
+2. **Widget** (`theme/snippets/booking-system.liquid`)
    - `MAX_BOOKINGS_PER_SLOT = 3` (line 257)
    - `loadFullBookedDates()` greys out dates where both slots are full
    - `checkAvail()` disables individual slots when `counts[slot] >= 3`
@@ -333,7 +333,7 @@ npx supabase functions deploy <name> [--no-verify-jwt]
 | File | Purpose |
 |---|---|
 | `admin-panel.html` | Single-file admin SPA |
-| `booking-widget-v2.html` | Shopify product-page widget |
+| `theme/snippets/booking-system.liquid` | Shopify product-page widget |
 | `server.js` | Render Express server |
 | `supabase-schema.sql` | Postgres schema (tables, indexes, triggers, RLS, seed zones) |
 | `supabase/functions/shopify-products-sync/index.ts` | Manual full product sync |

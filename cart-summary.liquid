@@ -1,0 +1,660 @@
+{%- doc -%}
+  Renders the cart summary totals.
+
+  @param {string} [accelerated_checkout_buttons_layout] - { 'vertical' } Forced layout of the additional checkout buttons, instead of relying on platform's layout.
+  @param {string} [section_id] - The section ID for cart discount component.
+{%- enddoc -%}
+{% assign conflict = false %}
+
+{% for item in cart.items %}
+  {% for item2 in cart.items %}
+
+    {% if item.key != item2.key %}
+
+      {% assign same_product_pair = false %}
+
+      {% if item.product_id == 8811194319045 and item2.product_id == 8811194548421 %}
+        {% assign same_product_pair = true %}
+      {% endif %}
+
+      {% if item.product_id == 8811194548421 and item2.product_id == 8811194319045 %}
+        {% assign same_product_pair = true %}
+      {% endif %}
+
+      {% assign date1 = item.properties['📅 Date'] | strip %}
+      {% assign date2 = item2.properties['📅 Date'] | strip %}
+
+      {% assign slot1 = item.properties['⏰ Slot'] | strip %}
+      {% assign slot2 = item2.properties['⏰ Slot'] | strip %}
+
+      {% if same_product_pair and date1 == date2 and slot1 == slot2 %}
+        {% assign conflict = true %}
+      {% endif %}
+
+    {% endif %}
+
+  {% endfor %}
+{% endfor %}
+
+{%- comment -%} DELIVERY FEE: state comes from the cart itself (fee line + cart attributes). Logic: assets/delivery-fee.js {%- endcomment -%}
+{%- liquid
+  assign delivery_variant_ids = '46164475936965,46164477182149,46164478951621,46164481343685' | split: ','
+  assign delivery_item = nil
+  for item in cart.items
+    assign item_variant_id = item.variant_id | append: ''
+    if delivery_variant_ids contains item_variant_id
+      assign delivery_item = item
+    endif
+  endfor
+  assign delivery_gov = cart.attributes['Delivery Governorate'] | default: ''
+  assign delivery_area = cart.attributes['Delivery Area'] | default: ''
+  assign delivery_selected = false
+  if delivery_item and delivery_area != blank
+    assign delivery_selected = true
+  endif
+  assign gov_options = 'capital:محافظة العاصمة,ahmadi:محافظة الأحمدي,jahra:محافظة الجهراء,farwaniya:محافظة الفروانية,hawalli:محافظة حولي,mubarak:محافظة مبارك الكبير' | split: ','
+-%}
+<div
+  class="delivery-box"
+  id="delivery-box"
+  data-selected-gov="{{ delivery_gov | escape }}"
+  data-selected-area="{{ delivery_area | escape }}"
+>
+  <h4>Select Delivery Area</h4>
+
+  <select id="gov" aria-label="Governorate">
+    <option value="">Select Governorate</option>
+    {%- for gov_option in gov_options -%}
+      {%- assign gov_parts = gov_option | split: ':' -%}
+      <option value="{{ gov_parts[0] }}"{% if gov_parts[0] == delivery_gov %} selected{% endif %}>{{ gov_parts[1] }}</option>
+    {%- endfor -%}
+  </select>
+
+  <select id="area" aria-label="Area">
+    <option value="">Select Area</option>
+    {%- if delivery_area != blank -%}
+      <option value="{{ delivery_area | escape }}" selected>{{ delivery_area }}</option>
+    {%- endif -%}
+  </select>
+
+  <p class="delivery-status" role="status" aria-live="polite"></p>
+</div>
+<div class="cart-totals">
+  {% # We need to keep this node in place to allow morphing to work properly # %}
+  <div class="cart-totals__original-container cart-primary-typography">
+    {%- if cart.cart_level_discount_applications.size > 0 -%}
+      <span class="cart-totals__item cart-totals__original">
+        <span class="cart-totals__original-label">{{ 'content.cart_subtotal' | t }}</span>
+        <span
+          class="cart-totals__original-value cart-secondary-typography"
+          data-testid="cart-subtotal-value"
+        >
+          {{- cart.items_subtotal_price | money -}}
+        </span>
+      </span>
+      <ul
+        class="cart-discounts"
+        role="list"
+        aria-label="{{ 'content.discounts' | t }}"
+      >
+        {%- for discount in cart.cart_level_discount_applications -%}
+          <li class="cart-discounts__item">
+            <span class="cart-discounts__label">
+              {{- 'icon-discount.svg' | inline_asset_content -}}
+              {{ discount.title | escape }}
+            </span>
+            <span class="cart-discounts__value cart-secondary-typography"
+              >-{{ discount.total_allocated_amount | money -}}
+            </span>
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+
+  {% if settings.show_cart_note or settings.show_add_discount_code %}
+    <div class="cart-actions">
+      {% if settings.show_cart_note %}
+        <script
+          type="module"
+          src="{{ 'cart-note.js' | asset_url }}"
+        ></script>
+
+        <cart-note style="display: flex;">
+          {% capture cart_note_accordion_children %}
+            <details
+              class="details"
+              {% if settings.cart_note_open_by_default %}
+                open
+              {% endif %}
+            >
+              <summary class="cart-note__summary">
+                <span class="cart-note__label cart-primary-typography">
+                  {{ 'content.seller_note' | t }}
+                </span>
+
+                <span class="cart-totals__icon">
+                  {{- 'icon-plus.svg' | inline_asset_content -}}
+                </span>
+              </summary>
+
+              <div class="details-content cart-note__inner">
+                <label
+                  for="cart-note"
+                  class="visually-hidden"
+                >
+                  {{- 'content.seller_note' | t -}}
+                </label>
+                <textarea
+                  form="cart-form"
+                  on:input="/updateCartNote"
+                  id="cart-note"
+                  class="cart-note__instructions"
+                  name="note"
+                >{{ cart.note }}</textarea>
+              </div>
+            </details>
+          {% endcapture %}
+          {% render 'accordion-custom-component',
+            children: cart_note_accordion_children,
+            class: 'cart-note',
+            open_by_default_on_desktop: settings.cart_note_open_by_default,
+            open_by_default_on_mobile: settings.cart_note_open_by_default
+          %}
+        </cart-note>
+      {% endif %}
+      {% if settings.show_cart_note and settings.show_add_discount_code %}
+        <div class="cart-actions__divider"></div>
+      {% endif %}
+      {% if settings.show_add_discount_code %}
+        {% liquid
+          assign discount_codes = cart.cart_level_discount_applications | where: 'type', 'discount_code' | map: 'title'
+          for item in cart.items
+            for allocation in item.line_level_discount_allocations
+              if allocation.discount_application.type == 'discount_code'
+                assign discount_codes = item.line_level_discount_allocations | slice: forloop.index0 | map: 'discount_application' | map: 'title' | concat: discount_codes
+              endif
+            endfor
+          endfor
+
+          assign discount_codes = discount_codes | uniq
+
+          # Evaluate the boolean expression for the disclosure state
+          if discount_codes.size == 0
+            assign disclosure_expanded = false
+          else
+            assign disclosure_expanded = true
+          endif
+        %}
+
+     
+       
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {%- liquid
+    if settings.currency_code_enabled_cart_total
+      assign total_price = cart.total_price | money_with_currency
+    else
+      assign total_price = cart.total_price | money
+    endif
+  -%}
+
+  <div class="cart-totals__container{% if settings.show_installments %} cart-totals__container--has-installments{% endif %}">
+    {%- if delivery_selected -%}
+      <div id="delivery-summary" style="margin-top:10px;">
+        <div id="delivery-area-name">Selected Area: {{ delivery_area }}</div>
+        <div id="delivery-fee-line" style="font-weight:bold;">Delivery Fee: {{ delivery_item.final_line_price | money }}</div>
+      </div>
+    {%- endif -%}
+    <span
+      class="cart-totals__item cart-totals__total"
+      role="status"
+    >
+      <span class="cart-totals__total-label cart-primary-typography">{{ 'content.cart_estimated_total' | t }}</span>
+      <text-component
+        ref="cartTotal"
+        value="{{ total_price | strip_html }}"
+        class="cart-totals__total-value cart-secondary-typography"
+        {% comment %} Used by payment_terms web component {% endcomment %}
+        data-testid="cart-total-value"
+        data-cart-subtotal
+      >
+        {{ total_price }}
+      </text-component>
+    </span>
+    {% if settings.show_installments %}
+      <span class="cart-totals__item cart-totals__installments">
+        {% form 'cart', cart %}
+          {{ form | payment_terms }}
+        {% endform %}
+      </span>
+    {% endif %}
+    <div class="cart-totals__item cart-totals__tax-note cart-primary-typography">
+      {% render 'tax-info', has_discounts_enabled: settings.show_add_discount_code %}
+    </div>
+  </div>
+</div>
+
+<div class="cart__ctas">
+{% unless delivery_selected %}
+  <div class="lily-notice" role="alert" dir="auto">Please Select Delivery Area to Checkout</div>
+{% endunless %}
+
+
+<div style="margin-top:20px;">
+
+<button
+  id="checkout-customer-btn"
+  type="button"
+  data-delivery-ready="{{ delivery_selected }}"
+  {% unless delivery_selected %}
+    disabled
+  {% endunless %}
+  style="
+    width:100%;
+    background:{% if delivery_selected %}#111{% else %}#999{% endif %};
+    color:white;
+    padding:16px;
+    border:none;
+    border-radius:8px;
+    cursor:{% if delivery_selected %}pointer{% else %}not-allowed{% endif %};
+    font-size:18px;
+    font-weight:bold;
+  "
+>
+ Checkout
+</button>
+
+</div>
+
+  {% if additional_checkout_buttons and settings.show_accelerated_checkout_buttons %}
+    <div
+      class="
+        additional-checkout-buttons
+        {% if accelerated_checkout_buttons_layout == 'vertical' %}additional-checkout-buttons--vertical{% endif %}
+      "
+    >
+      {{ content_for_additional_checkout_buttons }}
+    </div>
+  {% endif %}
+</div>
+
+{% stylesheet %}
+  /* Store-styled warning, used by the cart guard, the delivery check and the booking conflict */
+  .lily-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 var(--margin-md, 12px);
+    padding: 12px 16px;
+    border: 1px solid rgb(180 35 24 / 0.22);
+    border-radius: var(--style-border-radius-inputs, 8px);
+    background: rgb(180 35 24 / 0.06);
+    color: rgb(var(--color-foreground-rgb));
+    font-family: inherit;
+    font-size: var(--font-size--sm, 14px);
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: start;
+  }
+
+  .lily-notice::before {
+    content: '!';
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: #b42318;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .cart-page__items > .lily-notice {
+    margin-block-end: var(--margin-lg, 16px);
+  }
+
+  .delivery-box.is-busy {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .delivery-status {
+    margin: 6px 0 0;
+    font-size: 13px;
+  }
+
+  .delivery-status:empty {
+    display: none;
+  }
+
+  .cart-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-block: 1px solid var(--color-border);
+    padding-block: 0;
+    margin-block-start: var(--margin-3xs);
+  }
+
+  .cart-actions__divider {
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .cart-totals:not(:has(.cart-actions)) {
+    margin-block-start: var(--margin-3xs);
+    border-block-start: 1px solid var(--color-border);
+    padding-block-start: var(--margin-xl);
+  }
+
+  .cart-totals__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cart-totals__tax-note {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text));
+  }
+
+  .cart-totals__tax-note small {
+    font-size: var(--font-size--2xs);
+  }
+
+  .cart-discounts {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .cart-discounts__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cart-discounts__label {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2xs);
+  }
+
+  .cart-discounts__label svg {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+    display: inline-block;
+  }
+
+  .cart-totals__original-container,
+  .cart-totals__container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cart-totals__container {
+    row-gap: var(--gap-2xs);
+
+    &.cart-totals__container--has-installments {
+      row-gap: var(--gap-xs);
+    }
+  }
+
+  .cart-totals__original-container:empty {
+    display: none;
+  }
+
+  .cart-totals {
+    padding: 0px 5px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xl);
+    width: 100%;
+    border-block-start: none;
+
+    &:has(> :first-child:not(.cart-totals__original-container, .cart-totals__container)) {
+      padding-block-start: 0;
+      border-block-start: none;
+    }
+
+    @media screen and (min-width: 750px) {
+      padding-block-start: 0;
+    }
+  }
+
+  .cart-totals__original-container,
+  .cart-totals__original-container * {
+    font-size: var(--cart-font-size--sm);
+  }
+
+  .cart-totals__total {
+    align-items: baseline;
+    font-weight: var(--font-weight-bold);
+  }
+
+  .cart-totals__total-label {
+    font-size: var(--cart-font-size--sm);
+  }
+
+  .cart-totals__total-value {
+    font-size: var(--cart-font-size--xl);
+
+    @media screen and (max-width: 749px) {
+      font-size: var(--font-size--lg);
+    }
+  }
+
+  .cart-totals__installments {
+    color: var(--color-foreground);
+    font-size: var(--font-size--2xs);
+  }
+
+  .cart-note {
+    width: 100%;
+  }
+
+  @starting-style {
+    .cart-note[open-by-default-on-desktop][open-by-default-on-mobile] .details-content {
+      block-size: auto;
+      opacity: 1;
+      overflow-y: visible;
+    }
+  }
+
+  .cart-note__inner {
+    padding-block: var(--padding-2xs) var(--padding-sm);
+  }
+
+  .cart-note__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cart-note__summary:hover {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text));
+  }
+
+  .cart-note__label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-2xs);
+    font-size: var(--font-size--2xs);
+    font-weight: 500;
+  }
+
+  .cart-note__instructions {
+    color: var(--color-input-text);
+    background-color: var(--color-input-background);
+    border-width: var(--style-border-width-inputs);
+    border-color: var(--color-input-border);
+    transition: box-shadow var(--animation-speed) ease;
+    box-shadow: var(--input-box-shadow);
+    min-height: 5.5rem;
+    min-width: 100%;
+    max-width: 100%;
+    font-size: var(--font-size--sm);
+    padding: max(4px, calc(var(--style-border-radius-inputs) * (1 - cos(45deg))));
+  }
+
+  .cart-totals__icon {
+    height: var(--icon-size-xs);
+    width: var(--icon-size-xs);
+    margin: 0;
+  }
+
+  .cart__ctas {
+    width: 100%;
+    display: grid;
+    gap: var(--checkout-button-gap);
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
+
+  .cart__ctas .cart__checkout-button {
+    width: 100%;
+    height: clamp(25px, var(--height-buy-buttons), 55px);
+    padding-inline: var(--padding-4xl);
+  }
+
+  .cart-drawer__summary .cart-totals:not(:has(.cart-totals__original-container:empty)) {
+    border-block-start: var(--style-border-width) solid var(--color-border);
+    padding-block-start: var(--padding-2xl);
+  }
+
+  .cart-drawer__summary .cart-note {
+    @media screen and (min-width: 750px) {
+      margin-block-start: var(--margin-3xs);
+    }
+  }
+
+  .cart-discount__input {
+    background-color: var(--color-input-background);
+    color: var(--color-input-text);
+    border-width: var(--style-border-width-inputs);
+    border-color: var(--color-input-border);
+    border-style: solid;
+    border-radius: var(--style-border-radius-inputs);
+    padding: var(--padding-sm) var(--padding-md);
+    height: 100%;
+    flex-grow: 1;
+    min-width: 0;
+    font-size: var(--font-size--sm);
+  }
+
+  .cart-discount__input::placeholder {
+    color: rgb(var(--color-input-text-rgb) / var(--opacity-subdued-text));
+  }
+
+  .cart-discount__pill-code {
+    overflow: hidden;
+    max-width: 100px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0;
+  }
+
+  .cart-discount {
+    width: 100%;
+  }
+
+  .cart-discount__codes {
+    display: none;
+    gap: var(--padding-xs);
+    flex-wrap: wrap;
+    list-style: none;
+    padding-inline: 0;
+    margin: 0;
+  }
+
+  .cart-discount__codes:has(.cart-discount__pill) {
+    display: flex;
+  }
+
+  .cart-discount__button {
+    height: 100%;
+  }
+
+  .cart-discount__content {
+    height: calc(var(--button-size) + var(--padding-2xs) + var(--padding-sm));
+  }
+
+  .cart-discount__pill {
+    display: flex;
+    color: var(--color-foreground);
+    gap: var(--padding-xs);
+    align-items: center;
+    padding: var(--padding-xs) var(--padding-sm);
+    border-radius: var(--style-border-radius-pills);
+    background-color: var(--color-input-background);
+    text-transform: uppercase;
+  }
+
+  .cart-discount__form {
+    display: flex;
+    gap: var(--padding-md);
+    align-items: center;
+    height: 100%;
+    padding-block: var(--padding-2xs) var(--padding-sm);
+  }
+
+  :is(.cart-discount__pill-remove, .cart-discount__pill-remove:hover) {
+    --close-icon-opacity: 0.4;
+
+    color: var(--color-foreground);
+    background-color: transparent;
+    pointer-events: all;
+    cursor: pointer;
+    height: 100%;
+  }
+
+  .cart-discount__error {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding-block: var(--padding-2xs) var(--padding-sm);
+  }
+
+  .cart-discount__error .svg-wrapper {
+    flex-shrink: 0;
+    width: var(--icon-size-xs);
+    height: var(--icon-size-xs);
+    margin-inline: var(--margin-3xs) var(--margin-xs);
+  }
+
+  .cart-discount__error-text {
+    margin-block-start: var(--margin-3xs);
+  }
+
+  .cart-discount__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .cart-discount__summary:hover {
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-subdued-text));
+  }
+
+  .cart-discount__label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-2xs);
+    font-size: var(--font-size--2xs);
+    font-weight: 500;
+  }
+
+  @media screen and (min-width: 750px) {
+    .cart-summary--extend {
+      height: 100%;
+    }
+  }
+  
+{% endstylesheet %}
