@@ -83,6 +83,11 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     }
   };
 
+  // Arabic first, English on the next line
+  function bi(ar, en) { return ar + '\n' + en; }
+  var SLOT_AR = { morning: 'الفترة الصباحية', evening: 'الفترة المسائية' };
+  function quoteName(name) { return '«' + name + '»'; }
+
   function uniq(a) { return a.filter(function (v, i) { return v && a.indexOf(v) === i; }); }
   function pad(n) { return String(n).padStart(2, '0'); }
   function isDelivery(item) { return DELIVERY_IDS.indexOf(String(item.variant_id)) !== -1; }
@@ -184,14 +189,14 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     function fail(msg, transient) { return { ok: false, error: msg, transient: !!transient, cart: cart }; }
 
     var fc;
-    try { fc = await fetchCart(); } catch (e) { return fail('Could not load your cart. Please try again.', true); }
+    try { fc = await fetchCart(); } catch (e) { return fail(bi('تعذر تحميل السلة. يرجى المحاولة مرة أخرى.', 'Could not load your cart. Please try again.'), true); }
     cart = fc.cart;
     var now = fc.now;
     var items = cart.items || [];
     var real = items.filter(function (i) { return !isDelivery(i); });
 
     if (!real.length) {
-      return opts.requireItems ? fail('Your cart is empty.') : { ok: true, cart: cart, bookings: [] };
+      return opts.requireItems ? fail(bi('السلة فارغة.', 'Your cart is empty.')) : { ok: true, cart: cart, bookings: [] };
     }
 
     // 1. Main services vs add-ons (tag "non-package" = add-on, never a booking)
@@ -200,7 +205,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     var addons = [];
     for (var t = 0; t < real.length; t++) {
       if (tags[t] === null) {
-        if (opts.strict) return fail('Could not verify the products in your cart. Please try again.', true);
+        if (opts.strict) return fail(bi('تعذر التحقق من المنتجات في السلة. يرجى المحاولة مرة أخرى.', 'Could not verify the products in your cart. Please try again.'), true);
         continue;
       }
       (hasAddonTag(tags[t]) ? addons : mains).push(real[t]);
@@ -208,7 +213,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
 
     // 2. Add-ons need a main service
     if (addons.length && !mains.length) {
-      return fail('Add-on products can only be purchased with a main service. Please add a main service to your cart.');
+      return fail(bi('لا يمكن شراء الإضافات إلا مع باكج رئيسي. يرجى إضافة باكج إلى السلة.', 'Add-on products can only be purchased with a main service. Please add a main service to your cart.'));
     }
 
     // 3. Every main service: date + slot, quantity 1, far enough ahead
@@ -218,13 +223,13 @@ window.LilyCartRules = window.LilyCartRules || (function () {
       var name = m.product_title || m.title || 'This product';
       var b = readBooking(m);
       if (!b.date || !b.slot) {
-        return fail('"' + name + '" has no delivery date and time slot. Please remove it and add it again from its product page.');
+        return fail(bi(quoteName(name) + ' بدون تاريخ وفترة توصيل. يرجى حذفه وإضافته مرة أخرى من صفحة المنتج.', '"' + name + '" has no delivery date and time slot. Please remove it and add it again from its product page.'));
       }
       if (m.quantity !== 1) {
-        return fail('"' + name + '" can only be booked once per date and slot. Please set its quantity to 1.');
+        return fail(bi('يمكن حجز ' + quoteName(name) + ' مرة واحدة فقط لكل تاريخ وفترة. يرجى جعل الكمية 1.', '"' + name + '" can only be booked once per date and slot. Please set its quantity to 1.'));
       }
       if (slotStartMs(b.date, b.slot) - now < MIN_AHEAD_MS) {
-        return fail('The delivery time for "' + name + '" (' + b.date + ', ' + b.slot + ') is less than 24 hours away. Please remove it and choose a new date.');
+        return fail(bi('موعد توصيل ' + quoteName(name) + ' (' + b.date + '، ' + SLOT_AR[b.slot] + ') بعد أقل من 24 ساعة. يرجى حذفه واختيار تاريخ جديد.', 'The delivery time for "' + name + '" (' + b.date + ', ' + b.slot + ') is less than 24 hours away. Please remove it and choose a new date.'));
       }
       bookings.push({ name: name, date: b.date, slot: b.slot, shopifyId: String(m.product_id) });
     }
@@ -233,7 +238,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     var seen = {};
     for (var d = 0; d < bookings.length; d++) {
       var key = bookings[d].shopifyId + '|' + bookings[d].date + '|' + bookings[d].slot;
-      if (seen[key]) return fail('"' + bookings[d].name + '" is in your cart twice for ' + bookings[d].date + ' (' + bookings[d].slot + '). Please remove the duplicate.');
+      if (seen[key]) return fail(bi(quoteName(bookings[d].name) + ' موجود في السلة مرتين لتاريخ ' + bookings[d].date + ' (' + SLOT_AR[bookings[d].slot] + '). يرجى حذف المكرر.', '"' + bookings[d].name + '" is in your cart twice for ' + bookings[d].date + ' (' + bookings[d].slot + '). Please remove the duplicate.'));
       seen[key] = true;
     }
 
@@ -243,7 +248,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
       var attrs = cart.attributes || {};
       var expected = variantForArea(attrs[ATTR_GOV], attrs[ATTR_AREA]);
       if (!expected || fees.length !== 1 || fees[0].quantity !== 1 || String(fees[0].variant_id) !== String(expected)) {
-        return fail('Please select your delivery area in the cart before paying.');
+        return fail(bi('يرجى اختيار منطقة التوصيل في السلة قبل الدفع.', 'Please select your delivery area in the cart before paying.'));
       }
     }
 
@@ -253,7 +258,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     var sb = opts.sb;
     if (!sb) {
       return opts.strict
-        ? fail('Could not check availability. Please refresh the page and try again.', true)
+        ? fail(bi('تعذر التحقق من التوفر. يرجى تحديث الصفحة والمحاولة مرة أخرى.', 'Could not check availability. Please refresh the page and try again.'), true)
         : { ok: true, cart: cart, bookings: bookings, unchecked: true };
     }
 
@@ -266,10 +271,10 @@ window.LilyCartRules = window.LilyCartRules || (function () {
         sb.from('blocked_slots').select('block_date, slot, product_id').in('block_date', dates)
       ]);
     } catch (e) {
-      return fail('Could not check availability. Please try again.', true);
+      return fail(bi('تعذر التحقق من التوفر. يرجى المحاولة مرة أخرى.', 'Could not check availability. Please try again.'), true);
     }
     for (var r = 0; r < res.length; r++) {
-      if (res[r].error) return fail('Could not check availability. Please try again.', true);
+      if (res[r].error) return fail(bi('تعذر التحقق من التوفر. يرجى المحاولة مرة أخرى.', 'Could not check availability. Please try again.'), true);
     }
     var products = res[0].data || [];
     var booked = res[1].data || [];
@@ -323,29 +328,29 @@ window.LilyCartRules = window.LilyCartRules || (function () {
       for (var j = 0; j < g.length; j++) {
         var bk = g[j];
         if (existing.some(function (x) { return matches(x.product_id, bk.keys); })) {
-          return fail('"' + bk.name + '" is already booked for ' + date + ' (' + slot + '). Please choose another time.');
+          return fail(bi(quoteName(bk.name) + ' محجوز بالفعل في ' + date + ' (' + SLOT_AR[slot] + '). يرجى اختيار وقت آخر.', '"' + bk.name + '" is already booked for ' + date + ' (' + slot + '). Please choose another time.'));
         }
         if (existing.some(function (x) { return matches(x.product_id, bk.linked); })) {
-          return fail('"' + bk.name + '" is not available on ' + date + ' (' + slot + ') because its paired stand is already booked. Please choose another time.');
+          return fail(bi(quoteName(bk.name) + ' غير متاح في ' + date + ' (' + SLOT_AR[slot] + ') لأن الستاند المرتبط به محجوز. يرجى اختيار وقت آخر.', '"' + bk.name + '" is not available on ' + date + ' (' + slot + ') because its paired stand is already booked. Please choose another time.'));
         }
         if (blocked.some(function (x) {
           return x.block_date === date &&
             (!x.slot || x.slot === 'all' || x.slot === slot) &&
             (!x.product_id || matches(x.product_id, bk.keys));
         })) {
-          return fail('"' + bk.name + '" is not available on ' + date + ' (' + slot + '). Please choose another time.');
+          return fail(bi(quoteName(bk.name) + ' غير متاح في ' + date + ' (' + SLOT_AR[slot] + '). يرجى اختيار وقت آخر.', '"' + bk.name + '" is not available on ' + date + ' (' + slot + '). Please choose another time.'));
         }
         for (var q = j + 1; q < g.length; q++) {
           var other = g[q];
           if (bk.linked.some(function (k) { return other.keys.indexOf(k) !== -1; })) {
-            return fail('"' + bk.name + '" and "' + other.name + '" cannot be booked for the same date and slot. Please change one of them.');
+            return fail(bi('لا يمكن حجز ' + quoteName(bk.name) + ' و' + quoteName(other.name) + ' في نفس التاريخ والفترة. يرجى تغيير أحدهما.', '"' + bk.name + '" and "' + other.name + '" cannot be booked for the same date and slot. Please change one of them.'));
           }
         }
       }
 
       if (existing.length + g.length > MAX_PER_SLOT) {
         var left = Math.max(0, MAX_PER_SLOT - existing.length);
-        return fail('The ' + slot + ' slot on ' + date + ' has ' + left + ' place' + (left === 1 ? '' : 's') + ' left, but your cart has ' + g.length + ' bookings for it. Please move one to another time.');
+        return fail(bi(SLOT_AR[slot] + ' في ' + date + ': ' + (left ? 'متبقٍ ' + left + ' مكان فقط' : 'لا يوجد مكان متبقٍ') + '، وفي سلتك ' + g.length + ' حجز لهذه الفترة. يرجى نقل أحدها إلى وقت آخر.', 'The ' + slot + ' slot on ' + date + ' has ' + left + ' place' + (left === 1 ? '' : 's') + ' left, but your cart has ' + g.length + ' booking' + (g.length === 1 ? '' : 's') + ' for it. Please move one to another time.'));
       }
     }
 
@@ -422,14 +427,39 @@ window.LilyCartRules = window.LilyCartRules || (function () {
   // ============================================================
   // CART PAGE GUARD
   // ============================================================
+  // Multi-line (Arabic + English) warnings everywhere they are shown
+  try {
+    var st = document.createElement('style');
+    st.textContent =
+      '#bk-cart-error, #bk-err, #knet-validation-error { white-space: pre-line; }' +
+      // Bookings are always quantity 1 and the delivery fee is managed for the customer:
+      // hide their +/- controls (and the fee's delete button) so they cannot be changed.
+      '.lily-fixed-qty .quantity-selector { display: none !important; }' +
+      '.cart-items__table-row:has(a[href*="/products/delivery-fee-"]) .quantity-selector,' +
+      '.cart-items__table-row:has(a[href*="/products/delivery-fee-"]) .cart-items__remove { display: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+
   function isCartPage() {
     return /\/cart\/?$/.test(window.location.pathname);
   }
   if (!isCartPage()) return;
 
+  // A cart line is a booking when it shows the calendar date property
+  function markFixedQuantityRows() {
+    document.querySelectorAll('tr.cart-items__table-row').forEach(function (row) {
+      if (row.classList.contains('lily-fixed-qty')) return;
+      var dts = row.querySelectorAll('.cart-items__property dt');
+      for (var i = 0; i < dts.length; i++) {
+        if (dts[i].textContent.indexOf('Date') !== -1) { row.classList.add('lily-fixed-qty'); return; }
+      }
+    });
+  }
+
   var last = null;
   var running = false;
   var pending = false;
+  var checking = false; // a cart change is being re-checked: no stale warning, checkout held
 
   function getCheckoutButton() {
     return document.getElementById('checkout-customer-btn');
@@ -456,14 +486,15 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     if (banner && banner.style.display !== 'none') banner.style.display = 'none';
   }
 
-  function lockCheckout() {
+  function lockCheckout(label) {
     var btn = getCheckoutButton();
     if (!btn) return;
+    label = label || 'Checkout unavailable';
     if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
     if (!btn.disabled) btn.disabled = true;
     if (btn.style.opacity !== '0.5') btn.style.opacity = '0.5';
     if (btn.style.pointerEvents !== 'none') btn.style.pointerEvents = 'none';
-    if (btn.textContent.trim() !== 'Checkout unavailable') btn.textContent = 'Checkout unavailable';
+    if (btn.textContent.trim() !== label) btn.textContent = label;
   }
 
   function unlockCheckout() {
@@ -477,6 +508,12 @@ window.LilyCartRules = window.LilyCartRules || (function () {
   }
 
   function apply() {
+    markFixedQuantityRows();
+    if (checking) {
+      hideBanner();
+      lockCheckout('Checking… جارٍ التحقق');
+      return;
+    }
     if (!last) return;
     if (!last.ok && !last.transient) {
       lockCheckout();
@@ -491,13 +528,35 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     if (running) { pending = true; return; }
     running = true;
     R.validate({ sb: sb })
-      .then(function (res) { last = res; apply(); })
+      .then(function (res) { last = res; })
       .catch(function (err) { console.error('[cart-guard] validation failed:', err); })
       .finally(function () {
         running = false;
-        if (pending) { pending = false; check(); }
+        if (pending) { pending = false; check(); return; }
+        checking = false;
+        apply();
       });
   }
+
+  // Re-check right after any change to the cart, however the theme makes it
+  function cartChanged() {
+    checking = true;
+    apply();
+    check();
+  }
+  try {
+    var origFetch = window.fetch;
+    window.fetch = function (input) {
+      var url = String((input && input.url) || input || '');
+      var p = origFetch.apply(this, arguments);
+      if (/\/cart\/(add|change|update|clear)(\.js)?(\?|$)/.test(url)) {
+        checking = true;
+        apply();
+        p.then(function () { check(); }, function () { check(); });
+      }
+      return p;
+    };
+  } catch (e) {}
 
   var scheduled = false;
   new MutationObserver(function () {
@@ -506,7 +565,7 @@ window.LilyCartRules = window.LilyCartRules || (function () {
     requestAnimationFrame(function () { scheduled = false; apply(); });
   }).observe(document.body, { childList: true, subtree: true });
 
-  document.addEventListener('cart:update', function () { check(); });
+  document.addEventListener('cart:update', function () { cartChanged(); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') check();
   });

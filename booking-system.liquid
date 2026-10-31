@@ -292,7 +292,7 @@ form.bk-busy button[type="submit"] {
 .bk-slot-ico  { font-size: 18px; margin-bottom: 3px; }
 .bk-slot-lbl  { display: block; font-size: 12px; font-weight: 600; color: var(--mid); }
 .bk-slot-time { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
-.bk-slot-st   { display: block; font-size: 10px; margin-top: 5px; font-weight: 600; }
+.bk-slot-st   { display: block; font-size: 10px; margin-top: 5px; font-weight: 600; white-space: pre-line; line-height: 1.4; }
 .bk-st-ok  { color: var(--green); }
 .bk-st-na  { color: var(--red); }
 .bk-st-chk { color: var(--muted); }
@@ -317,6 +317,7 @@ form.bk-busy button[type="submit"] {
   padding: 11px 14px; border-radius: 0px; margin-bottom: 12px;
   background: #FFF0EE; border: 1px solid #F5C6C2;
   font-size: 13px; color: var(--red); display: none;
+  white-space: pre-line; line-height: 1.6;
 }
 #bk-err.show { display: block; }
 
@@ -379,10 +380,20 @@ form.bk-busy button[type="submit"] {
   var ready = Promise.resolve();
   var adding = false;
 
-  // ─── 24-hour rule helpers ───
+  // Arabic first, English on the next line
+  function bi(ar, en) { return ar + '\n' + en; }
+
+  // ─── 24-hour rule helpers (always Kuwait time, UTC+3, whatever the device clock zone) ───
+  var KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000;
+  function kuwaitDay(ms) {
+    var k = new Date(ms + KUWAIT_OFFSET_MS);
+    return new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+  }
+
   function getSlotStart(date, slotKey) {
     var hour = slotKey === 'morning' ? 6 : 14;
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30, 0, 0);
+    // 6:30 / 14:30 in Kuwait on the calendar day shown
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), hour, 30, 0, 0) - KUWAIT_OFFSET_MS);
   }
 
   function isSlotBookable(date, slotKey) {
@@ -390,13 +401,11 @@ form.bk-busy button[type="submit"] {
   }
 
   function getMinBookableDate() {
-    var minTime = new Date(Date.now() + MIN_AHEAD_MS);
-    return new Date(minTime.getFullYear(), minTime.getMonth(), minTime.getDate());
+    return kuwaitDay(Date.now() + MIN_AHEAD_MS);
   }
 
   function getMaxBookableDate() {
-    var d = new Date();
-    d.setHours(0, 0, 0, 0);
+    var d = kuwaitDay(Date.now());
     d.setMonth(d.getMonth() + 2);
     return d;
   }
@@ -577,7 +586,58 @@ form.bk-busy button[type="submit"] {
     return { counts: counts, mine: mine };
   }
 
+  // Bookings already in this customer's cart for one date (not booked yet,
+  // but they must still count: same package, paired stand, 2 places per slot)
+  function cartSlotOf(props) {
+    var pDate = props._bk_date || null;
+    var pSlot = props._bk_slot || '';
+    if (!pDate || !pSlot) {
+      Object.keys(props).forEach(function(k) {
+        if (k.charAt(0) === '_') return;
+        if (!pDate && k.toLowerCase().includes('date')) pDate = props[k];
+        if (!pSlot && k.toLowerCase().includes('slot')) pSlot = props[k];
+      });
+    }
+    if (!pDate || !pSlot) return null;
+    var s = String(pSlot).toLowerCase();
+    var slot = (s.indexOf('evening') !== -1 || s.indexOf('pm') !== -1) ? 'evening' : 'morning';
+    return { date: propDateToYMD(pDate), slot: slot };
+  }
+
+  function placeKey(shopifyId) {
+    var other = linkedProductFor(shopifyId);
+    return other && other < shopifyId ? other : shopifyId;
+  }
+
+  async function loadCartUsage(dateStr) {
+    var use = {
+      morning: { places: 0, mine: false, linked: false },
+      evening: { places: 0, mine: false, linked: false }
+    };
+    try {
+      var resp = await fetch(ROOT + 'cart.js', { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!resp.ok) return use;
+      var cart = await resp.json();
+      var myId = state.shopifyProductId || String(BK_PRODUCT_ID);
+      var myLinked = linkedProductFor(myId);
+      var seen = { morning: {}, evening: {} };
+      ((cart && cart.items) || []).forEach(function(it) {
+        if (!it || !it.properties) return;
+        var b = cartSlotOf(it.properties);
+        if (!b || b.date !== dateStr) return;
+        var id = String(it.product_id);
+        var u = use[b.slot];
+        if (id === myId) u.mine = true;
+        if (myLinked && id === myLinked) u.linked = true;
+        var key = placeKey(id);
+        if (!seen[b.slot][key]) { seen[b.slot][key] = true; u.places += 1; }
+      });
+    } catch (_) {}
+    return use;
+  }
+
   async function checkAvail(dateStr) {
+    var cartUse = await loadCartUsage(dateStr);
     var counts = await loadSlotCounts(dateStr);
     var taken = { morning: false, evening: false };
 
@@ -609,11 +669,18 @@ form.bk-busy button[type="submit"] {
       }
     });
 
+    function free(slot) {
+      var c = cartUse[slot];
+      return !taken[slot] && !counts.mine[slot] && !c.mine && !c.linked &&
+        counts.counts[slot] + c.places < MAX_BOOKINGS_PER_SLOT;
+    }
+
     return {
-      morning: !taken.morning && !counts.mine.morning && counts.counts.morning < MAX_BOOKINGS_PER_SLOT,
-      evening: !taken.evening && !counts.mine.evening && counts.counts.evening < MAX_BOOKINGS_PER_SLOT,
+      morning: free('morning'),
+      evening: free('evening'),
       counts: counts.counts,
-      mine: counts.mine
+      mine: counts.mine,
+      cart: cartUse
     };
   }
 
@@ -770,15 +837,26 @@ form.bk-busy button[type="submit"] {
         var avail = state.avail ? state.avail[key] : null;
         var bookedCount = state.avail && state.avail.counts ? state.avail.counts[key] : null;
         var alreadyBooked = state.avail && state.avail.mine ? !!state.avail.mine[key] : false;
+        var cartUse = state.avail && state.avail.cart ? state.avail.cart[key] : null;
         var tooSoon = state.selDate ? !isSlotBookable(state.selDate, key) : false;
         var isSel = state.selSlot === key;
         var isNa = avail === false || tooSoon;
         var stTxt, stCls;
-        if (avail === null) { stTxt = 'Checking…'; stCls = 'bk-st-chk'; }
-        else if (alreadyBooked) { stTxt = 'This product is already booked for this slot'; stCls = 'bk-st-na'; }
-        else if (avail && !tooSoon) { stTxt = bookedCount !== null ? bookedCount + '/' + MAX_BOOKINGS_PER_SLOT + ' booked' : 'Available'; stCls = 'bk-st-ok'; }
-        else if (bookedCount !== null && bookedCount >= MAX_BOOKINGS_PER_SLOT) { stTxt = 'Fully booked'; stCls = 'bk-st-na'; }
-        else { stTxt = 'Unavailable'; stCls = 'bk-st-na'; }
+        var inCart = cartUse ? cartUse.places : 0;
+        if (avail === null) { stTxt = bi('جارٍ التحقق…', 'Checking…'); stCls = 'bk-st-chk'; }
+        else if (alreadyBooked) { stTxt = bi('محجوز لهذا المنتج', 'Already booked'); stCls = 'bk-st-na'; }
+        else if (cartUse && cartUse.mine) { stTxt = bi('موجود في سلتك', 'Already in your cart'); stCls = 'bk-st-na'; }
+        else if (cartUse && cartUse.linked) { stTxt = bi('الستاند المرتبط في سلتك', 'Paired stand in your cart'); stCls = 'bk-st-na'; }
+        else if (avail && !tooSoon) {
+          stTxt = bookedCount !== null
+            ? bi('محجوز ' + bookedCount + ' من ' + MAX_BOOKINGS_PER_SLOT, bookedCount + '/' + MAX_BOOKINGS_PER_SLOT + ' booked') +
+              (inCart ? '\n' + bi('في سلتك: ' + inCart, 'In your cart: ' + inCart) : '')
+            : bi('متاح', 'Available');
+          stCls = 'bk-st-ok';
+        }
+        else if (bookedCount !== null && bookedCount >= MAX_BOOKINGS_PER_SLOT) { stTxt = bi('مكتمل', 'Fully booked'); stCls = 'bk-st-na'; }
+        else if (bookedCount !== null && bookedCount + inCart >= MAX_BOOKINGS_PER_SLOT) { stTxt = bi('مكتمل مع ما في سلتك', 'Full with your cart'); stCls = 'bk-st-na'; }
+        else { stTxt = bi('غير متاح', 'Unavailable'); stCls = 'bk-st-na'; }
         body +=
           '<div class="bk-slot' + (isSel ? ' bk-slot-sel' : '') + (isNa ? ' bk-slot-na' : '') +
           '" data-slot="' + key + '"' + (isNa ? ' tabindex="-1"' : '') + '>' +
@@ -841,7 +919,7 @@ form.bk-busy button[type="submit"] {
         var parts = el.dataset.d.split('-');
         var selectedDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
         if (!isDateBookable(selectedDate)) {
-          showErr('This date is not available for booking. Please select a date at least 24 hours from now.');
+          showErr(bi('هذا التاريخ غير متاح للحجز. يرجى اختيار موعد بعد ٢٤ ساعة على الأقل.', 'This date is not available for booking. Please select a date at least 24 hours from now.'));
           return;
         }
         clearErr();
@@ -983,10 +1061,10 @@ form.bk-busy button[type="submit"] {
       (form.querySelector('[ref="addToCartButton"]') || form.querySelector('button[type="submit"]'));
     if (btn && btn.disabled) return;
 
-    if (!state.selDate) { showErr('Please select a delivery date.', true); return; }
-    if (!state.selSlot) { showErr('Please select a time slot.', true); return; }
+    if (!state.selDate) { showErr(bi('يرجى اختيار تاريخ التوصيل.', 'Please select a delivery date.'), true); return; }
+    if (!state.selSlot) { showErr(bi('يرجى اختيار فترة التوصيل.', 'Please select a time slot.'), true); return; }
     if (!isDateBookable(state.selDate) || !isSlotBookable(state.selDate, state.selSlot)) {
-      showErr('This date is no longer available for booking. Please choose another date.', true);
+      showErr(bi('هذا التاريخ لم يعد متاحاً للحجز. يرجى اختيار تاريخ آخر.', 'This date is no longer available for booking. Please choose another date.'), true);
       return;
     }
 
@@ -1009,14 +1087,21 @@ form.bk-busy button[type="submit"] {
       }
       render();
 
-      if (!avail) { showErr('Could not check availability. Please try again.', true); return; }
+      if (!avail) { showErr(bi('تعذر التحقق من التوفر. يرجى المحاولة مرة أخرى.', 'Could not check availability. Please try again.'), true); return; }
       if (avail[state.selSlot] === false) {
+        var cu = avail.cart ? avail.cart[state.selSlot] : null;
         if (avail.mine && avail.mine[state.selSlot]) {
-          showErr('This product is already booked for this slot. Please choose another time.', true);
+          showErr(bi('هذا المنتج محجوز بالفعل في هذه الفترة. يرجى اختيار وقت آخر.', 'This product is already booked for this slot. Please choose another time.'), true);
+        } else if (cu && cu.mine) {
+          showErr(bi('هذا المنتج موجود في سلتك لنفس التاريخ والفترة. يرجى اختيار وقت آخر.', 'This product is already in your cart for this date and slot. Please choose another time.'), true);
+        } else if (cu && cu.linked) {
+          showErr(bi('الستاند المرتبط بهذا المنتج موجود في سلتك لنفس التاريخ والفترة، ولا يمكن حجزهما معاً. يرجى اختيار وقت آخر.', 'The paired stand is already in your cart for this date and slot, and both cannot be booked together. Please choose another time.'), true);
         } else if (avail.counts && avail.counts[state.selSlot] >= MAX_BOOKINGS_PER_SLOT) {
-          showErr('That slot has reached the daily capacity of 2 bookings. Please choose another time.', true);
+          showErr(bi('اكتملت الحجوزات في هذه الفترة (حجزان كحد أقصى). يرجى اختيار وقت آخر.', 'That slot has reached the daily capacity of 2 bookings. Please choose another time.'), true);
+        } else if (cu && avail.counts && avail.counts[state.selSlot] + cu.places >= MAX_BOOKINGS_PER_SLOT) {
+          showErr(bi('لا يوجد مكان متبقٍ في هذه الفترة بعد احتساب الحجوزات الموجودة في سلتك. يرجى اختيار وقت آخر.', 'No place is left in this slot once the bookings already in your cart are counted. Please choose another time.'), true);
         } else {
-          showErr('That slot is not available for this product on the selected date. Please choose another time.', true);
+          showErr(bi('هذه الفترة غير متاحة لهذا المنتج في التاريخ المختار. يرجى اختيار وقت آخر.', 'That slot is not available for this product on the selected date. Please choose another time.'), true);
         }
         return;
       }
@@ -1025,12 +1110,12 @@ form.bk-busy button[type="submit"] {
       var slotKey = state.selSlot;
       var cartConflict = await checkCartForConflict(dateStr, slotKey);
       if (cartConflict === true) {
-        showErr('This product is already in your cart for this date and slot. Please choose another time.', true);
+        showErr(bi('هذا المنتج موجود في سلتك لنفس التاريخ والفترة. يرجى اختيار وقت آخر.', 'This product is already in your cart for this date and slot. Please choose another time.'), true);
         return;
       }
 
       syncHiddenInputs();
-      if (!hasBookingValues()) { showErr('Please select a delivery date and time slot.', true); return; }
+      if (!hasBookingValues()) { showErr(bi('يرجى اختيار تاريخ وفترة التوصيل.', 'Please select a delivery date and time slot.'), true); return; }
       enforceQuantity(form);
 
       var waiter = waitForCartAdd(10000);
@@ -1043,10 +1128,10 @@ form.bk-busy button[type="submit"] {
       }
 
       var ok = await waiter;
-      if (ok === false) { showErr('Could not add to cart. Please try again.', true); return; }
+      if (ok === false) { showErr(bi('تعذرت الإضافة إلى السلة. يرجى المحاولة مرة أخرى.', 'Could not add to cart. Please try again.'), true); return; }
       if (ok === null) {
         var inCart = await checkCartForConflict(dateStr, slotKey);
-        if (inCart !== true) { showErr('Could not confirm the item was added. Please try again.', true); return; }
+        if (inCart !== true) { showErr(bi('تعذر التأكد من إضافة المنتج إلى السلة. يرجى المحاولة مرة أخرى.', 'Could not confirm the item was added. Please try again.'), true); return; }
       }
 
       window.location.href = ROOT + 'cart';
@@ -1059,7 +1144,7 @@ form.bk-busy button[type="submit"] {
   window.__bkRequestAdd = function (submitter) {
     requestAdd(submitter).catch(function (err) {
       console.error('[bk-widget] add to cart failed:', err);
-      showErr('Something went wrong. Please try again.', true);
+      showErr(bi('حدث خطأ. يرجى المحاولة مرة أخرى.', 'Something went wrong. Please try again.'), true);
     });
   };
 

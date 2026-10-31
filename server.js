@@ -11,6 +11,7 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
 
 app.use(
   express.json({
+    limit: '1mb', // Shopify order webhooks can be bigger than the 100 KB default
     verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); },
   })
 );
